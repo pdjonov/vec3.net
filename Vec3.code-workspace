@@ -1,0 +1,99 @@
+{
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "restore",
+				"type": "process",
+				"command": "dotnet",
+				"linux": {
+					"args": [
+						"restore",
+						"-p:TargetRuntimeIdentifier=linux-x64"
+					]
+				},
+				"windows": {
+					"args": [
+						"restore",
+						"-p:TargetRuntimeIdentifier=win-x64"
+					]
+				},
+				"options": {
+					"cwd": "${workspaceFolder:SiteGen}"
+				},
+				"problemMatcher": "$msCompile",
+				"group": "build"
+			},
+			{
+				"label": "build (SiteGen)",
+				"type": "process",
+				"command": "dotnet",
+				"linux": {
+					"args": [
+						"build",
+						"--no-restore",
+						"-p:TargetRuntimeIdentifier=linux-x64"
+					]
+				},
+				"windows": {
+					"args": [
+						"build",
+						"--no-restore",
+						"-p:TargetRuntimeIdentifier=win-x64"
+					]
+				},
+				"options": {
+					"cwd": "${workspaceFolder:SiteGen}"
+				},
+				"problemMatcher": "$msCompile",
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				}
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Run SiteGen",
+
+				"preLaunchTask": "build (SiteGen)",
+
+				"type": "coreclr",
+				"request": "launch",
+				"windows": {
+					"program": "${workspaceFolder:SiteGen}/Generator/bin/Debug/net9.0/win-x64/Generator.dll",
+				},
+				"linux": {
+					"program": "${workspaceFolder:SiteGen}/Generator/bin/Debug/net9.0/linux-x64/Generator.dll",
+				},
+				"args": [],
+				"cwd": "${workspaceFolder:Content}",
+				"stopAtEntry": false,
+				"console": "internalConsole",
+				//this lets us breakpoint in sources
+				"requireExactSource": false,
+				"logging": {
+					"moduleLoad": false,
+					"threadExit": false,
+					"processExit": true,
+					"programOutput": true
+				},
+			}
+		],
+		"compounds": []
+	},
+	"folders": [
+		{
+			"Name": "SiteGen",
+			"path": "SiteGen"
+		},
+		{
+			"name": "Content",
+			"path": "Content"
+		}
+	],
+	"settings": {}
+}

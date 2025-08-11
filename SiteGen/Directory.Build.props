@@ -1,0 +1,23 @@
+<Project>
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+
+		<Platforms>x64</Platforms>
+
+		<RuntimeIdentifiers>linux-x64; win-x64</RuntimeIdentifiers>
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == '' and '$(BuildingInsideVisualStudio)' == 'true'">win-x64</RuntimeIdentifier>
+
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<LangVersion>13.0</LangVersion>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TargetRuntimeIdentifier)' != ''">
+		<RuntimeIdentifier Condition="$(RuntimeIdentifiers.IndexOf($(TargetRuntimeIdentifier))) != -1">$(TargetRuntimeIdentifier)</RuntimeIdentifier>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- It's an offline tool, not a web server. Well... sort of. -->
+		<NuGetAudit>false</NuGetAudit>
+	</PropertyGroup>
+</Project>
