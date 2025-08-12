@@ -117,7 +117,7 @@ public abstract class LayoutTemplate : Template
 		return b;
 	}
 
-	protected async Task<Content?> RenderSection(string name)
+	protected async Task<Content?> RenderSection(string name, bool required = true)
 	{
 		var b = body ?? throw new InvalidOperationException();
 
@@ -125,7 +125,11 @@ public abstract class LayoutTemplate : Template
 
 		var sec = b.GetSection(name);
 		if (sec == null)
+		{
+			if (required)
+				throw new KeyNotFoundException($"The section '{name}' is not defined by the content.");
 			return null;
+		}
 
 		return await sec();
 	}
@@ -136,6 +140,6 @@ public abstract class LayoutTemplate : Template
 			Write(inner.GetOutput());
 	}
 
-	[Obsolete("Did you forget to await a @RenderBody or @RenderSection call?")]
+	[Obsolete("Did you forget to await a @RenderBody or @RenderSection call?", error: true)]
 	protected void Write(Task<Content> t) => throw new InvalidOperationException("Did you forget to await a @RenderBody or @RenderSection call?");
 }

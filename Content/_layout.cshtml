@@ -1,12 +1,8 @@
 <!DOCTYPE html>
 	<head>
-		@await RenderSection("header")
-		@await RenderSection("header")
-		@await RenderSection("header")
+		@await RenderSection("head", required: false)
 	</head>
 	<body>
 		@await RenderBody()
-		@await RenderSection("blar")
-		@await RenderSection("blardsfd")
 	</body>
 </html>
