@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Vec3.Site.Generator;
+namespace Vec3.Site.Generator.Templates;
 
 public abstract class Template : Content
 {

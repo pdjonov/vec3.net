@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Vec3.Site.Generator;
+namespace Vec3.Site.Generator.Templates;
 
 public abstract class Content
 {

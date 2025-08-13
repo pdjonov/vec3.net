@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Vec3.Site.Generator;
+namespace Vec3.Site.Generator.Templates;
 
 public partial class TemplatingEngine
 {

@@ -1,3 +1,3 @@
 SiteGen/*/bin
 SiteGen/*/obj
-Content/.cache
+Content/.*
