@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator.Content;
 
+using System.Linq;
+using Templates;
+
 public class InputItems
 {
 	private readonly List<InputItem> innerItems;
@@ -16,6 +19,8 @@ public class InputItems
 	/// </summary>
 	public string ContentDirectory { get; }
 
+	public TemplatingEngine TemplatingEngine { get; }
+
 	private InputItems(string contentDirectory)
 	{
 		ArgumentNullException.ThrowIfNull(contentDirectory);
@@ -23,6 +28,7 @@ public class InputItems
 		Items = new(innerItems = []);
 
 		ContentDirectory = contentDirectory;
+		TemplatingEngine = new(contentDirectory);
 	}
 
 	public static async Task<InputItems> Load(string contentDirectory)
@@ -30,6 +36,8 @@ public class InputItems
 		var ret = new InputItems(contentDirectory);
 
 		ret.ScanInputDirectory();
+
+		await Task.WhenAll(ret.innerItems.Select(it => it.Initialize()));
 
 		return ret;
 	}
@@ -47,10 +55,12 @@ public class InputItems
 					continue;
 
 				var relPath = Path.GetRelativePath(relativeTo: ContentDirectory, f);
+				var origin = new ContentOrigin.InitialFileScan(fullPath: f, relativePath: relPath);
 				var item = Path.GetExtension(name) switch
 				{
-					".cshtml" => null,
-					_ => new AssetFileItem(new(fullPath: f,relativePath: relPath)),
+					".cshtml" when name.StartsWith('_') => null,
+					".cshtml" => (FileItem)new RazorFileItem(origin, TemplatingEngine),
+					_ => (FileItem)new AssetFileItem(origin),
 				};
 
 				if (item != null)

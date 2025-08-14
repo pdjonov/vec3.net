@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator.Content;
 
+using Templates;
+
 public abstract class InputItem
 {
 	public ContentOrigin Origin { get; }
@@ -15,9 +17,11 @@ public abstract class InputItem
 		this.Origin = origin;
 	}
 
-	public ImmutableArray<string> OutputPaths { get; protected init; }
+	public ImmutableArray<string> OutputPaths { get; protected set; }
 
-	public abstract Task GenerateContent();
+	public virtual Task Initialize() => Task.CompletedTask;
+
+	public virtual Task GenerateContent() => Task.CompletedTask;
 	public abstract Task WriteContent(string outputPath, Stream stream);
 }
 
@@ -66,25 +70,23 @@ public abstract class ContentOrigin
 	}
 }
 
-public abstract class FileItem : InputItem
+public abstract class FileItem(ContentOrigin.InitialFileScan origin) : InputItem(origin)
 {
 	public new ContentOrigin.InitialFileScan Origin => (ContentOrigin.InitialFileScan)base.Origin;
 
 	public string RelativePath => Origin.RelativePath;
 
-	protected FileItem(ContentOrigin.InitialFileScan origin)
-		: base(origin)
+	public override Task Initialize()
 	{
 		OutputPaths = [RelativePath];
+		return Task.CompletedTask;
 	}
-
 	public override string ToString() => Path.GetFileName(Origin.RelativePath);
 }
 
 public class AssetFileItem(ContentOrigin.InitialFileScan origin)
 	: FileItem(origin)
 {
-	public override Task GenerateContent() => Task.CompletedTask;
 	public override async Task WriteContent(string outputPath, Stream stream)
 	{
 		using var data = File.OpenRead(Origin.FullPath);
@@ -92,12 +94,40 @@ public class AssetFileItem(ContentOrigin.InitialFileScan origin)
 	}
 }
 
-public class RazorFileItem(ContentOrigin.InitialFileScan origin)
-	: FileItem(origin)
+public class RazorFileItem(ContentOrigin.InitialFileScan origin, TemplatingEngine templatingEngine) : FileItem(origin)
 {
-	public override Task GenerateContent() => Task.CompletedTask;
-	public override Task WriteContent(string outputPath, Stream stream)
+	public TemplatingEngine TemplatingEngine { get; } = templatingEngine;
+
+	private Template? template;
+	private Content? finalContent;
+
+	public override async Task Initialize()
 	{
-		throw new NotImplementedException();
+		if (template != null)
+			throw new InvalidOperationException();
+
+		var templateFactory = await TemplatingEngine.GetTemplate<Template>(RelativePath);
+		template = templateFactory();
+
+		OutputPaths = [Path.ChangeExtension(RelativePath, ".html")];
+	}
+
+	public override async Task GenerateContent()
+	{
+		if (template == null || finalContent != null)
+			throw new InvalidOperationException();
+
+		finalContent = await TemplatingEngine.ApplyLayout(RelativePath, template);
+	}
+	public override async Task WriteContent(string outputPath, Stream stream)
+	{
+		if (finalContent == null)
+			throw new InvalidOperationException();
+
+		var content = finalContent.GetOutput();
+
+		var writer = new StreamWriter(stream);
+		await writer.WriteAsync(content);
+		await writer.FlushAsync();
 	}
 }

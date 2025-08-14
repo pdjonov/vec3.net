@@ -8,6 +8,20 @@ namespace Vec3.Site.Generator.Templates;
 
 public partial class TemplatingEngine
 {
+	public async Task<Content> ApplyLayout(string path, Content body)
+	{
+		var ret = body;
+		foreach (var layoutFactory in await GetLayoutStack(path))
+		{
+			var layout = layoutFactory();
+			layout.Body = ret;
+			ret = layout;
+		}
+
+		await ret.Execute();
+
+		return ret;
+	}
 
 	public async Task<Content[]> GenerateContent(string path)
 	{
@@ -16,11 +30,11 @@ public partial class TemplatingEngine
 			throw new ArgumentException(paramName: nameof(path), message: "Template files can't be generated as content.");
 
 		var content = Path.GetExtension(path) switch
-			{
-				".cshtml" => await LoadCshtmlContent(path),
+		{
+			".cshtml" => await LoadCshtmlContent(path),
 
-				_ => throw new ArgumentException($"Unsupported content type '{path}'."),
-			};
+			_ => throw new ArgumentException($"Unsupported content type '{path}'."),
+		};
 
 		var layouts = await GetLayoutStack(path);
 
