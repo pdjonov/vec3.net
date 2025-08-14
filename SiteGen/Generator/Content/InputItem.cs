@@ -77,6 +77,8 @@ public abstract class FileItem : InputItem
 	{
 		OutputPaths = [RelativePath];
 	}
+
+	public override string ToString() => Path.GetFileName(Origin.RelativePath);
 }
 
 public class AssetFileItem(ContentOrigin.InitialFileScan origin)
@@ -88,6 +90,14 @@ public class AssetFileItem(ContentOrigin.InitialFileScan origin)
 		using var data = File.OpenRead(Origin.FullPath);
 		await data.CopyToAsync(stream);
 	}
+}
 
-	public override string ToString() => Path.GetFileName(Origin.RelativePath);
+public class RazorFileItem(ContentOrigin.InitialFileScan origin)
+	: FileItem(origin)
+{
+	public override Task GenerateContent() => Task.CompletedTask;
+	public override Task WriteContent(string outputPath, Stream stream)
+	{
+		throw new NotImplementedException();
+	}
 }
