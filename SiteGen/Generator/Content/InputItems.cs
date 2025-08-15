@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+
+using Markdig;
 
 namespace Vec3.Site.Generator.Content;
 
-using System.Linq;
 using Templates;
 
 public class InputItems
@@ -20,6 +22,7 @@ public class InputItems
 	public string ContentDirectory { get; }
 
 	public TemplatingEngine TemplatingEngine { get; }
+	public MarkdownPipeline MarkdownPipeline { get; }
 
 	private InputItems(string contentDirectory)
 	{
@@ -29,6 +32,11 @@ public class InputItems
 
 		ContentDirectory = contentDirectory;
 		TemplatingEngine = new(contentDirectory);
+
+		MarkdownPipeline = new MarkdownPipelineBuilder().
+			UseAdvancedExtensions().
+			UseYamlFrontMatter().
+			Build();
 	}
 
 	public static async Task<InputItems> Load(string contentDirectory)
@@ -54,12 +62,13 @@ public class InputItems
 					//skip "hidden" and utility dot-files
 					continue;
 
-				var relPath = Path.GetRelativePath(relativeTo: ContentDirectory, f);
+				var relPath = Path.GetRelativePath(relativeTo: ContentDirectory, f).Replace('\\', '/');
 				var origin = new ContentOrigin.InitialFileScan(fullPath: f, relativePath: relPath);
 				var item = Path.GetExtension(name) switch
 				{
 					".cshtml" when name.StartsWith('_') => null,
 					".cshtml" => (FileItem)new RazorFileItem(origin, TemplatingEngine),
+					".md" => (FileItem)new MarkdownFileItem(origin, TemplatingEngine, MarkdownPipeline),
 					_ => (FileItem)new AssetFileItem(origin),
 				};
 

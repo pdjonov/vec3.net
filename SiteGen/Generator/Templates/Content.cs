@@ -49,3 +49,20 @@ public abstract class Content
 		return GetOutputCore();
 	}
 }
+
+public class TextContent : Content
+{
+	public string Text { get; }
+
+	public TextContent(string text)
+	{
+		ArgumentNullException.ThrowIfNull(text);
+
+		Text = text;
+
+		Execute(); //will instantly complete because ExecuteCore is a no-op
+	}
+
+	protected override Task ExecuteCore() => Task.CompletedTask;
+	protected override string GetOutputCore() => Text;
+}

@@ -1,11 +1,10 @@
 using System;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator.Content;
-
-using Templates;
 
 public abstract class InputItem
 {
@@ -17,7 +16,18 @@ public abstract class InputItem
 		this.Origin = origin;
 	}
 
-	public ImmutableArray<string> OutputPaths { get; protected set; }
+	private ImmutableArray<string> outputPaths;
+	public ImmutableArray<string> OutputPaths
+	{
+		get => outputPaths;
+		protected set
+		{
+			foreach (var path in value)
+				Helpers.ValidateRelativePath(path, paramName: nameof(OutputPaths));
+
+			outputPaths = value;
+		}
+	}
 
 	public virtual Task Initialize() => Task.CompletedTask;
 
@@ -36,6 +46,11 @@ public abstract class ContentOrigin
 		{
 			ArgumentNullException.ThrowIfNullOrWhiteSpace(fullPath);
 			ArgumentNullException.ThrowIfNull(relativePath);
+			if (relativePath.Contains('\\'))
+				throw new ArgumentException(paramName: nameof(relativePath), message: "The relative path must use forward slashes.");
+			if (Path.IsPathFullyQualified(relativePath) ||
+				relativePath.StartsWith('/'))
+				throw new ArgumentException(paramName: nameof(relativePath), message: "The relative path must actually be relative.");
 
 			FullPath = fullPath;
 			RelativePath = relativePath;
@@ -74,11 +89,14 @@ public abstract class FileItem(ContentOrigin.InitialFileScan origin) : InputItem
 {
 	public new ContentOrigin.InitialFileScan Origin => (ContentOrigin.InitialFileScan)base.Origin;
 
-	public string RelativePath => Origin.RelativePath;
+	/// <summary>
+	/// The item's path relative to the content directory.
+	/// </summary>
+	public string ContentRelativePath => Origin.RelativePath;
 
 	public override Task Initialize()
 	{
-		OutputPaths = [RelativePath];
+		OutputPaths = [ContentRelativePath];
 		return Task.CompletedTask;
 	}
 	public override string ToString() => Path.GetFileName(Origin.RelativePath);
@@ -91,43 +109,5 @@ public class AssetFileItem(ContentOrigin.InitialFileScan origin)
 	{
 		using var data = File.OpenRead(Origin.FullPath);
 		await data.CopyToAsync(stream);
-	}
-}
-
-public class RazorFileItem(ContentOrigin.InitialFileScan origin, TemplatingEngine templatingEngine) : FileItem(origin)
-{
-	public TemplatingEngine TemplatingEngine { get; } = templatingEngine;
-
-	private Template? template;
-	private Content? finalContent;
-
-	public override async Task Initialize()
-	{
-		if (template != null)
-			throw new InvalidOperationException();
-
-		var templateFactory = await TemplatingEngine.GetTemplate<Template>(RelativePath);
-		template = templateFactory();
-
-		OutputPaths = [Path.ChangeExtension(RelativePath, ".html")];
-	}
-
-	public override async Task GenerateContent()
-	{
-		if (template == null || finalContent != null)
-			throw new InvalidOperationException();
-
-		finalContent = await TemplatingEngine.ApplyLayout(RelativePath, template);
-	}
-	public override async Task WriteContent(string outputPath, Stream stream)
-	{
-		if (finalContent == null)
-			throw new InvalidOperationException();
-
-		var content = finalContent.GetOutput();
-
-		var writer = new StreamWriter(stream);
-		await writer.WriteAsync(content);
-		await writer.FlushAsync();
 	}
 }

@@ -11,4 +11,4 @@ var input = await InputItems.Load(contentDirectory);
 var output = await Output.Generate(contentDirectory, input);
 
 foreach (var (path, source) in output.Items.OrderBy(it => it.Key))
-	Console.WriteLine($"{path} : {source} from {source.Origin}");
+	Console.WriteLine($"{path} << {source} (from {source.GetType().Name} at {source.Origin})");
