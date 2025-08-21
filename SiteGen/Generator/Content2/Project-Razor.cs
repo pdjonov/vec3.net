@@ -4,58 +4,51 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
+
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-namespace Vec3.Site.Generator.Templates;
+namespace Vec3.Site.Generator;
 
-public partial class TemplatingEngine
+partial class Project
 {
-	public TemplatingEngine(string contentPath)
+	private readonly Lock razorEngineLock = new();
+	private readonly RazorProjectEngine razorEngine;
+
+	private static string RazorContentNamespace = typeof(Project).Namespace + ".GeneratedContent";
+
+	private static RazorProjectEngine CreateRazorEngine(Project project)
 	{
-		if (!Directory.Exists(contentPath))
-			throw new DirectoryNotFoundException($"The content directory '{contentPath}' cannot be found.");
-
-		CompiledTemplateCachePath = Path.Combine(contentPath, ".cache/cshtml");
-		Directory.CreateDirectory(CompiledTemplateCachePath);
-
-		ContentPath = contentPath;
-
-		razorEngine = RazorProjectEngine.Create(
+		return RazorProjectEngine.Create(
 			configuration: RazorConfiguration.Create(
 				languageVersion: RazorLanguageVersion.Latest,
 				configurationName: "Site",
 				extensions: []),
-			fileSystem: RazorProjectFileSystem.Create(contentPath),
+			fileSystem: RazorProjectFileSystem.Create(project.ContentDirectory),
 			configure: b =>
 			{
-				b.Features.Add(new FixupTemplateClass(this));
+				b.Features.Add(new FixupRazorPageClass(project));
 				b.Features.Add(new FullyQualifyBaseType());
 
 				SectionDirective.Register(b);
 			});
 	}
 
-	public string ContentPath { get; }
-	public string CompiledTemplateCachePath { get; }
-
-	private readonly Lock razorEngineLock = new();
-	private readonly RazorProjectEngine razorEngine;
-
-	private class FixupTemplateClass(TemplatingEngine engine) : RazorEngineFeatureBase, IRazorDocumentClassifierPass
+	private class FixupRazorPageClass(Project engine) : RazorEngineFeatureBase, IRazorDocumentClassifierPass
 	{
-		private readonly TemplatingEngine engine = engine;
+		private readonly Project engine = engine;
 
 		public int Order => int.MaxValue;
 
 		public void Execute(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
 		{
-			TemplateInfo info;
-			lock (engine.templateInfosLock)
-				info = engine.templateInfos[codeDocument.Source.RelativePath];
+			RazorPageInfo info;
+			lock (engine.razorPageInfosLock)
+				info = engine.razorPageInfos[codeDocument.Source.RelativePath];
 
 			var namespaceNode = documentNode.FindPrimaryNamespace();
 			namespaceNode.Content = info.Namespace;
@@ -66,8 +59,7 @@ public partial class TemplatingEngine
 
 			var methodNode = documentNode.FindPrimaryMethod();
 			methodNode.MethodName = "ExecuteCore";
-			methodNode.Modifiers.RemoveAt(0);
-			methodNode.Modifiers.Insert(0, "protected");
+			methodNode.Modifiers[0] = "protected";
 		}
 	}
 
@@ -80,13 +72,13 @@ public partial class TemplatingEngine
 			var classNode = documentNode.FindPrimaryClass();
 			switch (classNode.BaseType)
 			{
-				case nameof(Template):
-				case nameof(LayoutTemplate):
-					classNode.BaseType = $"global::{typeof(Template).Namespace}.{classNode.BaseType}";
-					break;
+			case nameof(Template):
+			case nameof(LayoutTemplate):
+				classNode.BaseType = $"global::{typeof(Template).Namespace}.{classNode.BaseType}";
+				break;
 
-				default:
-					throw new InvalidDataException($"Template has invalid base type '{classNode.BaseType}'.");
+			default:
+				throw new InvalidDataException($"Razor page has invalid base type '{classNode.BaseType}'.");
 			}
 		}
 	}
@@ -95,61 +87,61 @@ public partial class TemplatingEngine
 		[
 			MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
 			MetadataReference.CreateFromFile(typeof(Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemAttribute).Assembly.Location),
-			MetadataReference.CreateFromFile(typeof(TemplatingEngine).Assembly.Location),
+			MetadataReference.CreateFromFile(typeof(Project).Assembly.Location),
 
 			//netcore stuff...?
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll"))
 		];
-
-	public async Task<Func<Template>> GetTemplate(string path)
+		
+	public async Task<Func<Template>> GetRazorPage(string path)
 	{
-		var info = GetTemplateInfo(path);
+		var info = GetRazorPageInfo(path);
 		await info.InitializationTask;
 
 		return info.Create;
 	}
 
-	public async Task<Func<T>> GetTemplate<T>(string path)
+	public async Task<Func<T>> GetRazorPage<T>(string path)
 		where T : Template
 	{
-		var info = GetTemplateInfo(path);
+		var info = GetRazorPageInfo(path);
 		await info.InitializationTask;
 
-		if (!typeof(T).IsAssignableFrom(info.TemplateType))
+		if (!typeof(T).IsAssignableFrom(info.PageType))
 			throw new ArgumentException($"The template '{path}' is not derived from {typeof(T).Name}");
 
 		return () => (T)info.Create();
 	}
 
-	private TemplateInfo GetTemplateInfo(string path)
+	private RazorPageInfo GetRazorPageInfo(string path)
 	{
-		lock (templateInfosLock)
+		lock (razorPageInfosLock)
 		{
-			if (!templateInfos.TryGetValue(path, out var info))
-				templateInfos.Add(path, info = new(this, path));
+			if (!razorPageInfos.TryGetValue(path, out var info))
+				razorPageInfos.Add(path, info = new(this, path));
 
 			return info;
 		}
 	}
 
-	private readonly Lock templateInfosLock = new();
-	private readonly Dictionary<string, TemplateInfo> templateInfos = new(StringComparer.Ordinal);
+	private readonly Lock razorPageInfosLock = new();
+	private readonly Dictionary<string, RazorPageInfo> razorPageInfos = new(StringComparer.Ordinal);
 
-	private class TemplateInfo
+	private class RazorPageInfo
 	{
-		public TemplateInfo(TemplatingEngine engine, string path)
+		public RazorPageInfo(Project engine, string path)
 		{
 			if (!File.Exists(path))
-				throw new FileNotFoundException("The requested template was not found.", fileName: path);
+				throw new FileNotFoundException("The requested page was not found.", fileName: path);
 
 			SourcePath = path;
 			InitializationTask = Task.Run(() => Initialize(engine));
 		}
 
-		private void Initialize(TemplatingEngine engine)
+		private void Initialize(Project engine)
 		{
-			//process the Razor template
+			//process the Razor page
 
 			if (Path.GetFileName(SourcePath) == "_layout.cshtml")
 				BaseTypeName = typeof(LayoutTemplate).Name;
@@ -166,7 +158,7 @@ public partial class TemplatingEngine
 				baseCachePath = file.RelativePhysicalPath;
 				//fix up the cache path
 				baseCachePath = Path.ChangeExtension(baseCachePath, null);
-				baseCachePath = Path.Combine(engine.CompiledTemplateCachePath, baseCachePath);
+				baseCachePath = Path.Combine(engine.RazorCacheDirectory, baseCachePath);
 
 				assemblyFile = baseCachePath + ".dll";
 
@@ -243,7 +235,7 @@ public partial class TemplatingEngine
 			if (hasError)
 			{
 				Helpers.DeleteNoThrowIoException(assemblyFile);
-				throw new InvalidDataException($"Unable to compile template '{SourcePath}'.");
+				throw new InvalidDataException($"Unable to compile page '{SourcePath}'.");
 			}
 
 			var peStream = Helpers.CreateFileInMaybeMissingDirectory(assemblyFile);
@@ -263,26 +255,26 @@ public partial class TemplatingEngine
 				peStream.Dispose();
 			}
 
-			//load the template assembly
+			//load the page assembly
 
 		assemblyIsUpToDate:
 			assembly = Assembly.LoadFrom(assemblyFile);
 
-			templateType = assembly.GetType($"{Namespace}.{TypeName}");
+			pageType = assembly.GetType($"{Namespace}.{TypeName}");
 		}
 
 		public string SourcePath { get; }
 
-		public string Namespace { get; private set; } = typeof(TemplatingEngine).Namespace + ".Templates";
-		public string TypeName { get; private set; } = "Template";
+		public string Namespace { get; private set; } = RazorContentNamespace;
+		public string TypeName { get; private set; } = "Page";
 		public string BaseTypeName { get; private set; } = typeof(Template).Name;
 
 		public Task InitializationTask { get; }
 
 		private Assembly? assembly;
 
-		private Type? templateType;
-		public Type TemplateType => templateType ?? throw new InvalidOperationException();
+		private Type? pageType;
+		public Type PageType => pageType ?? throw new InvalidOperationException();
 
 		public Template Create()
 		{
@@ -292,7 +284,8 @@ public partial class TemplatingEngine
 			if (InitializationTask.IsFaulted || InitializationTask.IsCanceled)
 				InitializationTask.GetAwaiter().GetResult(); //rethrows for us
 
-			return (Template)Activator.CreateInstance(templateType!)!;
+			return (Template)Activator.CreateInstance(pageType!)!;
 		}
 	}
+
 }

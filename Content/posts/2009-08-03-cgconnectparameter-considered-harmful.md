@@ -2,7 +2,7 @@
 title: cgConnectParameter Considered Harmful
 date: 2009-08-03
 author: phill
-permalink: /posts/cgconnectparameter-considered-harmful
+permalink: cgconnectparameter-considered-harmful
 categories:
   - code
   - shaders

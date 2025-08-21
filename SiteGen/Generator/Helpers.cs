@@ -3,11 +3,27 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
 
 internal static class Helpers
 {
+	public static Exception? GetException(this Task task)
+	{
+		if (task.IsFaulted)
+		{
+			return task.Exception.InnerExceptions.Count == 1 ?
+				task.Exception.InnerExceptions[0] :
+				task.Exception;
+		}
+
+		if (task.IsCanceled)
+			return new TaskCanceledException(task);
+
+		return null;
+	}
+
 	public static void ValidateRelativePath(string path, bool mustBeNormalized = true, bool mustNotEscapeRoot = true, [CallerArgumentExpression(nameof(path))] string paramName = "path")
 	{
 		ArgumentNullException.ThrowIfNull(path);
