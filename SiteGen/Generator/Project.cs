@@ -54,13 +54,13 @@ public partial class Project
 		//ToDo: generated content
 	}
 
-	private List<ContentItem> ScanInputDirectory()
+	private async Task<List<ContentItem>> ScanInputDirectory()
 	{
 		var ret = new List<ContentItem>();
 
-		ScanDirectory(ContentDirectory);
+		await ScanDirectory(ContentDirectory);
 
-		void ScanDirectory(string path)
+		async Task ScanDirectory(string path)
 		{
 			foreach (var f in Directory.GetFiles(path))
 			{
@@ -74,9 +74,9 @@ public partial class Project
 				var item = Path.GetExtension(name) switch
 				{
 					".cshtml" when name.StartsWith('_') => null,
-					".cshtml" => null, //ToDo
+					".cshtml" => (ContentItem)await GetRazorPage(origin),
 					".cs" => null, //model files,ignore these for now
-					".md" => (ContentItem)new MarkdownFileItem(origin),
+					".md" => (ContentItem)new MarkdownPage(origin),
 					_ => (ContentItem)new AssetFile(origin),
 				};
 
@@ -91,7 +91,7 @@ public partial class Project
 					//skip "hidden" and utility dot-dirs
 					continue;
 
-				ScanDirectory(dir);
+				await ScanDirectory(dir);
 			}
 		}
 

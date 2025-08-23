@@ -12,17 +12,15 @@ using YamlDotNet.RepresentationModel;
 
 namespace Vec3.Site.Generator;
 
-public class MarkdownFileItem(InputFile origin) : ContentItem(origin)
+public class MarkdownPage(InputFile origin) : FileContentItem(origin)
 {
-	public new InputFile Origin => (InputFile)base.Origin;
-
 	private MarkdownDocument? source;
 
 	protected override async Task CoreInitialize()
 	{
 		var sourceText = await File.ReadAllTextAsync(Origin.FullPath);
 
-		source = Markdown.Parse(sourceText, Origin.Project.MarkdownPipeline);
+		source = Markdown.Parse(sourceText, Project.MarkdownPipeline);
 
 		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
 
@@ -40,6 +38,8 @@ public class MarkdownFileItem(InputFile origin) : ContentItem(origin)
 				permalinkNode is YamlScalarNode typedPermalinkNode &&
 				typedPermalinkNode.Value is not null)
 				OutputPaths = [Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, typedPermalinkNode.Value)];
+
+			base.FrontMatter = frontMatter;
 		}
 	}
 
@@ -49,7 +49,7 @@ public class MarkdownFileItem(InputFile origin) : ContentItem(origin)
 	{
 		Debug.Assert(source != null);
 
-		var html = Markdown.ToHtml(source, Origin.Project.MarkdownPipeline);
+		var html = Markdown.ToHtml(source, Project.MarkdownPipeline);
 
 		finalContent = html;
 	}

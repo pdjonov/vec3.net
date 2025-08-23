@@ -1,17 +1,13 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
 
-public abstract class Template : ContentItem
+public abstract class RazorPage : FileContentItem
 {
 	private StringWriter? writer;
 
-	protected Template(ContentOrigin origin) : base(origin)
+	protected RazorPage(InputFile origin) : base(origin)
 	{
 	}
 
@@ -21,9 +17,9 @@ public abstract class Template : ContentItem
 	protected void WriteLiteral(string literal) => Writer.Write(literal);
 }
 
-public abstract class LayoutTemplate : Template
+public abstract class LayoutTemplate : RazorPage
 {
-	protected LayoutTemplate(ContentOrigin origin) : base(origin)
+	protected LayoutTemplate(InputFile origin) : base(origin)
 	{
 	}
 }

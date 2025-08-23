@@ -3,10 +3,8 @@ using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
 
-public class AssetFile(InputFile origin) : ContentItem(origin)
+public class AssetFile(InputFile origin) : FileContentItem(origin)
 {
-	public new InputFile Origin => (InputFile)base.Origin;
-
 	protected override Task CoreInitialize()
 	{
 		OutputPaths = [Origin.ContentRelativePath];

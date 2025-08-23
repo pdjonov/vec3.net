@@ -58,7 +58,7 @@ partial class Project
 			classNode.BaseType = info.BaseTypeName;
 
 			var methodNode = documentNode.FindPrimaryMethod();
-			methodNode.MethodName = "ExecuteCore";
+			methodNode.MethodName = "PrepareContentCore";
 			methodNode.Modifiers[0] = "protected";
 		}
 	}
@@ -72,9 +72,9 @@ partial class Project
 			var classNode = documentNode.FindPrimaryClass();
 			switch (classNode.BaseType)
 			{
-			case nameof(Template):
+			case nameof(RazorPage):
 			case nameof(LayoutTemplate):
-				classNode.BaseType = $"global::{typeof(Template).Namespace}.{classNode.BaseType}";
+				classNode.BaseType = $"global::{typeof(RazorPage).Namespace}.{classNode.BaseType}";
 				break;
 
 			default:
@@ -93,26 +93,34 @@ partial class Project
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll"))
 		];
+
+	private async Task<RazorPage> GetRazorPage(InputFile origin)
+	{
+		var info = GetRazorPageInfo(origin.ContentRelativePath);
+		await info.InitializationTask;
+
+		return (RazorPage)info.Create(origin);
+	}
 		
-	public async Task<Func<Template>> GetRazorPage(string path)
-	{
-		var info = GetRazorPageInfo(path);
-		await info.InitializationTask;
+	// public async Task<Func<Template>> GetRazorPage(string path)
+	// {
+	// 	var info = GetRazorPageInfo(path);
+	// 	await info.InitializationTask;
 
-		return info.Create;
-	}
+	// 	return info.Create;
+	// }
 
-	public async Task<Func<T>> GetRazorPage<T>(string path)
-		where T : Template
-	{
-		var info = GetRazorPageInfo(path);
-		await info.InitializationTask;
+	// public async Task<Func<T>> GetRazorPage<T>(string path)
+	// 	where T : Template
+	// {
+	// 	var info = GetRazorPageInfo(path);
+	// 	await info.InitializationTask;
 
-		if (!typeof(T).IsAssignableFrom(info.PageType))
-			throw new ArgumentException($"The template '{path}' is not derived from {typeof(T).Name}");
+	// 	if (!typeof(T).IsAssignableFrom(info.PageType))
+	// 		throw new ArgumentException($"The template '{path}' is not derived from {typeof(T).Name}");
 
-		return () => (T)info.Create();
-	}
+	// 	return () => (T)info.Create();
+	// }
 
 	private RazorPageInfo GetRazorPageInfo(string path)
 	{
@@ -178,7 +186,7 @@ partial class Project
 				var finalDoc = code.GetDocumentIntermediateNode();
 				{
 					var ns = finalDoc.FindPrimaryNamespace().Content;
-					if (ns != Namespace && !ns.StartsWith(typeof(Template).Namespace + "."))
+					if (ns != Namespace && !ns.StartsWith(RazorContentNamespace + "."))
 						throw new InvalidDataException($"Templates mustn't move themselves out of the '{Namespace}' namespace");
 
 					Namespace = ns;
@@ -267,7 +275,7 @@ partial class Project
 
 		public string Namespace { get; private set; } = RazorContentNamespace;
 		public string TypeName { get; private set; } = "Page";
-		public string BaseTypeName { get; private set; } = typeof(Template).Name;
+		public string BaseTypeName { get; private set; } = typeof(RazorPage).Name;
 
 		public Task InitializationTask { get; }
 
@@ -276,7 +284,7 @@ partial class Project
 		private Type? pageType;
 		public Type PageType => pageType ?? throw new InvalidOperationException();
 
-		public Template Create()
+		public object Create(params object[] args)
 		{
 			if (!InitializationTask.IsCompleted)
 				throw new InvalidOperationException();
@@ -284,7 +292,7 @@ partial class Project
 			if (InitializationTask.IsFaulted || InitializationTask.IsCanceled)
 				InitializationTask.GetAwaiter().GetResult(); //rethrows for us
 
-			return (Template)Activator.CreateInstance(pageType!)!;
+			return Activator.CreateInstance(pageType!, args: args)!;
 		}
 	}
 
