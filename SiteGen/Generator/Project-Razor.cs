@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -31,14 +32,14 @@ partial class Project
 			fileSystem: RazorProjectFileSystem.Create(project.ContentDirectory),
 			configure: b =>
 			{
-				b.Features.Add(new FixupRazorPageClass(project));
+				b.Features.Add(new FixupRazorClass(project));
 				b.Features.Add(new FullyQualifyBaseType());
 
 				SectionDirective.Register(b);
 			});
 	}
 
-	private class FixupRazorPageClass(Project engine) : RazorEngineFeatureBase, IRazorDocumentClassifierPass
+	private class FixupRazorClass(Project engine) : RazorEngineFeatureBase, IRazorDocumentClassifierPass
 	{
 		private readonly Project engine = engine;
 
@@ -46,20 +47,44 @@ partial class Project
 
 		public void Execute(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
 		{
-			RazorPageInfo info;
-			lock (engine.razorPageInfosLock)
-				info = engine.razorPageInfos[codeDocument.Source.RelativePath];
+			RazorTemplateInfo info;
+			lock (engine.razorTemplateInfosLock)
+				info = engine.razorTemplateInfos[codeDocument.Source.RelativePath];
 
 			var namespaceNode = documentNode.FindPrimaryNamespace();
 			namespaceNode.Content = info.Namespace;
 
 			var classNode = documentNode.FindPrimaryClass();
 			classNode.ClassName = info.TypeName;
-			classNode.BaseType = info.BaseTypeName;
+			classNode.BaseType = info.BaseType.FullName;
 
 			var methodNode = documentNode.FindPrimaryMethod();
-			methodNode.MethodName = "PrepareContentCore";
+			methodNode.MethodName = "GenerateContent";
 			methodNode.Modifiers[0] = "protected";
+
+			var baseCtor = info.BaseType.
+				GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).
+				Where(c => c.IsPublic | c.IsFamily).
+				OrderBy(c => c.GetParameters().Length).
+				FirstOrDefault();
+			if (baseCtor != null && baseCtor.GetParameters().Length != 0)
+			{
+				var parms = baseCtor.GetParameters();
+				classNode.Children.Insert(0, new CSharpCodeIntermediateNode()
+				{
+					Children =
+					{
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content =
+								$"public {classNode.ClassName}" +
+								$"({string.Join(", ", parms.Select(p => $"global::{p.ParameterType.FullName} {p.Name}"))})" +
+								$": base({string.Join(", ", parms.Select(p => p.Name))}) {{ }}\n"
+						}
+					}
+				});
+			}
 		}
 	}
 
@@ -70,16 +95,16 @@ partial class Project
 		public void Execute(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
 		{
 			var classNode = documentNode.FindPrimaryClass();
-			switch (classNode.BaseType)
-			{
-			case nameof(RazorPage):
-			case nameof(LayoutTemplate):
-				classNode.BaseType = $"global::{typeof(RazorPage).Namespace}.{classNode.BaseType}";
-				break;
 
-			default:
+			var type = supportedPageTypes.FirstOrDefault(t =>
+				classNode.BaseType == t.Name ||
+				classNode.BaseType == t.FullName ||
+				classNode.BaseType == GlobalPrefix + t.FullName);
+
+			if (type == null)
 				throw new InvalidDataException($"Razor page has invalid base type '{classNode.BaseType}'.");
-			}
+
+			classNode.BaseType = GlobalPrefix + type.FullName;
 		}
 	}
 
@@ -93,6 +118,14 @@ partial class Project
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
 			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll"))
 		];
+
+	private static readonly Type[] supportedPageTypes =
+		[
+			typeof(RazorPage),
+			typeof(RazorLayout),
+		];
+
+	const string GlobalPrefix = "global::";
 
 	private async Task<RazorPage> GetRazorPage(InputFile origin)
 	{
@@ -122,23 +155,23 @@ partial class Project
 	// 	return () => (T)info.Create();
 	// }
 
-	private RazorPageInfo GetRazorPageInfo(string path)
+	private RazorTemplateInfo GetRazorPageInfo(string path)
 	{
-		lock (razorPageInfosLock)
+		lock (razorTemplateInfosLock)
 		{
-			if (!razorPageInfos.TryGetValue(path, out var info))
-				razorPageInfos.Add(path, info = new(this, path));
+			if (!razorTemplateInfos.TryGetValue(path, out var info))
+				razorTemplateInfos.Add(path, info = new(this, path));
 
 			return info;
 		}
 	}
 
-	private readonly Lock razorPageInfosLock = new();
-	private readonly Dictionary<string, RazorPageInfo> razorPageInfos = new(StringComparer.Ordinal);
+	private readonly Lock razorTemplateInfosLock = new();
+	private readonly Dictionary<string, RazorTemplateInfo> razorTemplateInfos = new(StringComparer.Ordinal);
 
-	private class RazorPageInfo
+	private class RazorTemplateInfo
 	{
-		public RazorPageInfo(Project engine, string path)
+		public RazorTemplateInfo(Project engine, string path)
 		{
 			if (!File.Exists(path))
 				throw new FileNotFoundException("The requested page was not found.", fileName: path);
@@ -151,8 +184,13 @@ partial class Project
 		{
 			//process the Razor page
 
-			if (Path.GetFileName(SourcePath) == "_layout.cshtml")
-				BaseTypeName = typeof(LayoutTemplate).Name;
+			var fileName = Path.GetFileName(SourcePath);
+			if (fileName == "_layout.cshtml")
+				BaseType = typeof(RazorLayout);
+			else if (fileName.StartsWith('_'))
+				BaseType = typeof(RazorPartial);
+
+			TypeName = $"{BaseType.Name}_{Helpers.GetHashString(SourcePath)}";
 
 			string source;
 			string baseCachePath;
@@ -194,7 +232,18 @@ partial class Project
 
 				TypeName = finalDoc.FindPrimaryClass().ClassName;
 
-				BaseTypeName = finalDoc.FindPrimaryClass().BaseType;
+				{
+					var baseTypeName = finalDoc.FindPrimaryClass().BaseType;
+
+					if (baseTypeName.StartsWith(GlobalPrefix))
+						baseTypeName = baseTypeName.Substring(GlobalPrefix.Length);
+
+					var baseType = typeof(Project).Assembly.GetType(baseTypeName);
+					if (baseType == null || !supportedPageTypes.Contains(baseType))
+						throw new InvalidDataException("Invalid base type for razor template.");
+
+					BaseType = baseType;
+				}
 
 				source = code.GetCSharpDocument().GeneratedCode;
 			}
@@ -275,7 +324,7 @@ partial class Project
 
 		public string Namespace { get; private set; } = RazorContentNamespace;
 		public string TypeName { get; private set; } = "Page";
-		public string BaseTypeName { get; private set; } = typeof(RazorPage).Name;
+		public Type BaseType { get; private set; } = typeof(RazorPage);
 
 		public Task InitializationTask { get; }
 

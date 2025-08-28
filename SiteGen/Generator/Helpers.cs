@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
@@ -142,5 +145,17 @@ internal static class Helpers
 		catch (IOException)
 		{
 		}
+	}
+
+	public static string GetHashString(string data)
+	{
+		ArgumentNullException.ThrowIfNull(data);
+
+		Span<byte> hash = stackalloc byte[SHA256.HashSizeInBytes];
+		SHA256.HashData(
+			source: MemoryMarshal.AsBytes(data.AsSpan()),
+			destination: hash);
+
+		return Convert.ToHexString(hash);
 	}
 }
