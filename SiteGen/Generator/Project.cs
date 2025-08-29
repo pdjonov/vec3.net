@@ -47,6 +47,10 @@ public partial class Project
 	protected virtual async Task LoadCore()
 	{
 		var inputItems = await Task.Run(ScanInputDirectory);
+
+		await CompileSiteCode(inputItems.OfType<SiteCode>());
+		inputItems.RemoveAll(it => it is SiteCode);
+
 		await Task.WhenAll(inputItems.Select(i => i.Initialize()));
 
 		content.AddRange(inputItems);
@@ -75,7 +79,7 @@ public partial class Project
 				{
 					".cshtml" when name.StartsWith('_') => null,
 					".cshtml" => (ContentItem)await GetRazorPage(origin),
-					".cs" => null, //additional code files,ignore these for now
+					".cs" => (ContentItem)new SiteCode(origin),
 					".md" => (ContentItem)new MarkdownPage(origin),
 					_ => (ContentItem)new AssetFile(origin),
 				};

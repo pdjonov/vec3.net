@@ -123,11 +123,11 @@ internal static class Helpers
 		}
 	}
 
-	public static void WriteAllTextInMaybeMissingDirectory(string path, string contents)
+	public static void WriteAllTextInMaybeMissingDirectory(string path, string contents, Encoding? encoding = null)
 	{
 		try
 		{
-			File.WriteAllText(path, contents);
+			File.WriteAllText(path, contents, encoding ?? Encoding.UTF8);
 		}
 		catch (DirectoryNotFoundException)
 		{

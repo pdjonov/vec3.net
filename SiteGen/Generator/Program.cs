@@ -7,4 +7,4 @@ var proj = await Project.Load(Environment.CurrentDirectory);
 var output = await proj.GenerateOutput();
 
 foreach (var (path, source) in output.Items.OrderBy(it => it.Key))
-	Console.WriteLine($"{path} << {source} (from {source.GetType().Name} at {source.Origin})");
+	Console.WriteLine($"{path} << {source.GetType().Name} (from {source.Origin})");

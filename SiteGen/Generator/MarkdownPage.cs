@@ -9,6 +9,7 @@ using Markdig.Extensions.Yaml;
 using Markdig.Syntax;
 
 using YamlDotNet.RepresentationModel;
+using YamlDotNet.Serialization;
 
 namespace Vec3.Site.Generator;
 
@@ -44,21 +45,57 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 			FirstOrDefault();
 		if (frontMatterYamlBlock != null)
 		{
-			var yaml = new YamlStream();
-			yaml.Load(new StringReader(sourceText.Substring(frontMatterYamlBlock.Span.Start, frontMatterYamlBlock.Span.Length)));
+			var yamlSourceSpan = sourceText.AsSpan(frontMatterYamlBlock.Span.Start, frontMatterYamlBlock.Span.Length);
+			yamlSourceSpan = yamlSourceSpan.TrimStart("---");
+			yamlSourceSpan = yamlSourceSpan.TrimEnd("---");
 
-			var frontMatter = (YamlMappingNode)yaml.Documents[0].RootNode;
+			var yamlText = yamlSourceSpan.ToString();
 
-			if (frontMatter.Children.TryGetValue("permalink", out var permalinkNode) &&
-				permalinkNode is YamlScalarNode typedPermalinkNode &&
-				typedPermalinkNode.Value is not null)
-				OutputPaths = [Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, typedPermalinkNode.Value)];
+			var frontMatter = (object?)null;
+			var permalink = (string?)null;
+			var title = (string?)null;
 
-			if (frontMatter.Children.TryGetValue("title", out var titleNode) &&
-				titleNode is YamlScalarNode typedTitleNode)
-				Title = typedTitleNode.Value;
+			var frontMatterType = Project.GetFrontMatterTypeFor(Origin);
+			if (frontMatterType != null)
+			{
+				var des = Project.YamlDeserializer.Deserialize(yamlText, frontMatterType);
 
-			base.FrontMatter = frontMatter;
+				if (des is IFrontMatter asFrontMatter)
+				{
+					asFrontMatter.Populate(this);
+
+					permalink = asFrontMatter.Permalink;
+					title = asFrontMatter.Title;
+				}
+
+				frontMatter = des;
+			}
+
+			if (frontMatter == null || permalink == null || title == null)
+			{
+				var yaml = new YamlStream();
+				yaml.Load(new StringReader(yamlText));
+
+				var yamlRoot = (YamlMappingNode)yaml.Documents[0].RootNode;
+				frontMatter ??= yamlRoot;
+
+				if (permalink is null &&
+					yamlRoot.Children.TryGetValue("permalink", out var permalinkNode) &&
+					permalinkNode is YamlScalarNode typedPermalinkNode &&
+					typedPermalinkNode.Value is not null)
+					permalink = typedPermalinkNode.Value;
+
+				if (title is null &&
+					yamlRoot.Children.TryGetValue("title", out var titleNode) &&
+					titleNode is YamlScalarNode typedTitleNode)
+					title = typedTitleNode.Value;
+			}
+
+			this.OutputPaths = !string.IsNullOrEmpty(permalink) ?
+				[Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, permalink)] :
+				[Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
+			this.FrontMatter = frontMatter;
+			this.Title = title;
 		}
 	}
 

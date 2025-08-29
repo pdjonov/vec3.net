@@ -28,4 +28,6 @@ public sealed class InputFile : ContentOrigin
 
 		this.ContentRelativePath = contentRelativePath;
 	}
+
+	public override string ToString() => ContentRelativePath;
 }

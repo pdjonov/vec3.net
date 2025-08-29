@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -193,21 +196,161 @@ partial class Project
 		return ret;
 	}
 
-	private static readonly MetadataReference[] metadataReferences =
-		[
-			MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-			MetadataReference.CreateFromFile(typeof(Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemAttribute).Assembly.Location),
-			MetadataReference.CreateFromFile(typeof(Project).Assembly.Location),
+	private readonly List<MetadataReference> metadataReferences = LoadMetadataReferences();
 
-			//netcore stuff...?
-			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "System.Runtime.dll")),
-			MetadataReference.CreateFromFile(Path.Combine(Path.GetDirectoryName(typeof(object).Assembly.Location)!, "netstandard.dll"))
-		];
+	private static List<MetadataReference> LoadMetadataReferences()
+	{
+		var ret = new List<MetadataReference>();
+
+		var binDir = Path.GetDirectoryName(typeof(Project).Assembly.Location)!;
+		var refDir = Path.Combine(binDir, "refs");
+
+		foreach (var asm in Directory.EnumerateFiles(refDir, "*.dll"))
+			ret.Add(MetadataReference.CreateFromFile(asm));
+
+		ret.Add(MetadataReference.CreateFromFile(typeof(Project).Assembly.Location));
+
+		return ret;
+	}
+
+	private readonly AssemblyLoadContext assemblyLoadContext = new("Site Content", isCollectible: true);
+	private Assembly? siteCodeAssembly;
+
+	private async Task CompileSiteCode(IEnumerable<SiteCode> code)
+	{
+		code = code.ToArray();
+
+		var siteAssemblyPath = Path.Combine(CacheDirectory, "site.dll");
+		var siteDllTime = File.Exists(siteAssemblyPath) ?
+			File.GetLastWriteTime(siteAssemblyPath) :
+			default;
+
+		var siteSourceTime = siteDllTime;
+		foreach (var c in code)
+		{
+			var time = File.GetLastWriteTime(c.FullPath);
+			if (time > siteSourceTime)
+				siteSourceTime = time;
+		}
+
+		if (siteSourceTime > siteDllTime)
+		{
+			var compilation = CSharpCompilation.Create(
+				assemblyName: "site",
+				syntaxTrees: code.Select(c => ParseCSharpSource(c.FullPath)).
+				Append(CreateGlobalUsingsSource(typeof(Project).Namespace!)).
+				ToArray() /* do the file reading outside the Create call */,
+				references: metadataReferences,
+				options: new(
+					OutputKind.DynamicallyLinkedLibrary,
+					nullableContextOptions: NullableContextOptions.Enable));
+
+			if (!CheckDiagnostics(compilation.GetDiagnostics()))
+			{
+				Helpers.DeleteNoThrowIoException(siteAssemblyPath);
+				throw new InvalidDataException($"Unable to compile site source.");
+			}
+
+			EmitAssembly(compilation, siteAssemblyPath);
+		}
+		else if (siteSourceTime == default)
+		{
+			//there's no source, there should be no assembly
+			Helpers.DeleteNoThrowIoException(siteAssemblyPath);
+			return;
+		}
+
+		metadataReferences.Add(MetadataReference.CreateFromFile(siteAssemblyPath));
+		siteCodeAssembly = assemblyLoadContext.LoadFromAssemblyPath(siteAssemblyPath);
+
+		FindFrontMatterTypes();
+	}
+
+	private static CSharpSyntaxTree ParseCSharpSource(string path, CancellationToken cancellationToken = default)
+	{
+		using var reader = new StreamReader(path, detectEncodingFromByteOrderMarks: true);
+		var sourceText = reader.ReadToEnd();
+		return (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(sourceText,
+			path: path,
+			encoding: reader.CurrentEncoding,
+			cancellationToken: cancellationToken);
+	}
+
+	private static SyntaxTree CreateGlobalUsingsSource(params IEnumerable<string> namespaces)
+	{
+		var source = new StringBuilder();
+
+		foreach (var ns in namespaces)
+		{
+			source.Append("global using ");
+			if (!ns.StartsWith(GlobalPrefix))
+				source.Append(GlobalPrefix);
+			source.Append(ns);
+			source.Append(";\n");
+		}
+
+		return CSharpSyntaxTree.ParseText(source.ToString());
+	}
+
+	private static bool CheckDiagnostics(ImmutableArray<Diagnostic> diagnostics)
+	{
+		var hasError = false;
+		foreach (var d in diagnostics)
+		{
+			if (d.Severity < DiagnosticSeverity.Warning)
+				continue;
+
+			if (d.Severity == DiagnosticSeverity.Error)
+				hasError = true;
+
+			lock (Console.Error)
+			{
+				if (!Console.IsErrorRedirected)
+					Console.ForegroundColor = d.Severity switch
+					{
+						DiagnosticSeverity.Error => ConsoleColor.Red,
+						DiagnosticSeverity.Warning => ConsoleColor.DarkYellow,
+						DiagnosticSeverity.Info => ConsoleColor.Gray,
+						DiagnosticSeverity.Hidden => ConsoleColor.DarkGray,
+
+						_ => ConsoleColor.White,
+					};
+
+				Console.Error.WriteLine(d.ToString());
+
+				if (!Console.IsErrorRedirected)
+					Console.ResetColor();
+			}
+		}
+
+		return !hasError;
+	}
+
+	private static void EmitAssembly(CSharpCompilation compilation, string assemblyFile)
+	{
+		using var peStream = Helpers.CreateFileInMaybeMissingDirectory(assemblyFile);
+		try
+		{
+			var res = compilation.Emit(
+				peStream: peStream,
+				options: new(debugInformationFormat: Microsoft.CodeAnalysis.Emit.DebugInformationFormat.Embedded));
+			if (!CheckDiagnostics(res.Diagnostics) || !res.Success)
+				throw new InvalidDataException($"Failed to emit '{assemblyFile}'.");
+		}
+		catch
+		{
+			peStream.Dispose();
+			Helpers.DeleteNoThrowIoException(assemblyFile);
+
+			throw;
+		}
+	}
 
 	private static readonly Type[] supportedPageTypes =
 		[
 			typeof(RazorPage),
 			typeof(RazorLayout),
+			typeof(RazorPartial),
 		];
 
 	private const string GlobalPrefix = "global::";
@@ -348,73 +491,29 @@ partial class Project
 			}
 
 			//makes it easier to debug if we can see what's happening
-			Helpers.WriteAllTextInMaybeMissingDirectory(baseCachePath + ".cs", source);
+			var csSourcePath = baseCachePath + ".cs";
+			Helpers.WriteAllTextInMaybeMissingDirectory(csSourcePath, source, Encoding.UTF8);
 
 			//compile the template code
 
 			var compilation = CSharpCompilation.Create(
 				assemblyName: assemblyName,
-				syntaxTrees: [CSharpSyntaxTree.ParseText(source)],
-				references: metadataReferences,
+				syntaxTrees: [CSharpSyntaxTree.ParseText(source, path: csSourcePath, encoding: Encoding.UTF8)],
+				references: engine.metadataReferences,
 				options: new(OutputKind.DynamicallyLinkedLibrary));
 
-			var diagnostics = compilation.GetDiagnostics();
-			var hasError = false;
-			foreach (var d in diagnostics)
-			{
-				if (d.Severity < DiagnosticSeverity.Warning)
-					continue;
-
-				if (d.Severity == DiagnosticSeverity.Error)
-					hasError = true;
-
-				lock (Console.Error)
-				{
-					if (!Console.IsErrorRedirected)
-						Console.ForegroundColor = d.Severity switch
-						{
-							DiagnosticSeverity.Error => ConsoleColor.Red,
-							DiagnosticSeverity.Warning => ConsoleColor.DarkYellow,
-							DiagnosticSeverity.Info => ConsoleColor.Gray,
-							DiagnosticSeverity.Hidden => ConsoleColor.DarkGray,
-
-							_ => ConsoleColor.White,
-						};
-
-					Console.Error.WriteLine(d.ToString());
-
-					if (!Console.IsErrorRedirected)
-						Console.ResetColor();
-				}
-			}
-
-			if (hasError)
+			if (!CheckDiagnostics(compilation.GetDiagnostics()))
 			{
 				Helpers.DeleteNoThrowIoException(assemblyFile);
 				throw new InvalidDataException($"Unable to compile page '{SourcePath}'.");
 			}
 
-			var peStream = Helpers.CreateFileInMaybeMissingDirectory(assemblyFile);
-			try
-			{
-				compilation.Emit(
-					peStream: peStream,
-					options: new(debugInformationFormat: Microsoft.CodeAnalysis.Emit.DebugInformationFormat.Embedded));
-			}
-			catch
-			{
-				peStream.Dispose();
-				Helpers.DeleteNoThrowIoException(assemblyFile);
-			}
-			finally
-			{
-				peStream.Dispose();
-			}
+			EmitAssembly(compilation, assemblyFile);
 
 			//load the page assembly
 
 		assemblyIsUpToDate:
-			assembly = Assembly.LoadFrom(assemblyFile);
+			assembly = engine.assemblyLoadContext.LoadFromAssemblyPath(assemblyFile);
 
 			pageType = assembly.GetType($"{Namespace}.{TypeName}");
 		}
