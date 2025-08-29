@@ -12,9 +12,24 @@ using YamlDotNet.RepresentationModel;
 
 namespace Vec3.Site.Generator;
 
-public class MarkdownPage(InputFile origin) : HtmlContentItem(origin)
+public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 {
 	private MarkdownDocument? source;
+
+	public string? Title
+	{
+		get
+		{
+			ThrowIfNotInitialized();
+			return title;
+		}
+		protected set
+		{
+			ThrowIfNotInitializing();
+			title = value;
+		}
+	}
+	private string? title;
 
 	protected override async Task CoreInitialize()
 	{
@@ -38,6 +53,10 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin)
 				permalinkNode is YamlScalarNode typedPermalinkNode &&
 				typedPermalinkNode.Value is not null)
 				OutputPaths = [Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, typedPermalinkNode.Value)];
+
+			if (frontMatter.Children.TryGetValue("title", out var titleNode) &&
+				titleNode is YamlScalarNode typedTitleNode)
+				Title = typedTitleNode.Value;
 
 			base.FrontMatter = frontMatter;
 		}

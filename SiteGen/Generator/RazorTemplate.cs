@@ -16,7 +16,9 @@ public abstract class RazorTemplate : HtmlContentItem
 	protected void Write(object obj) => Writer.Write(obj);
 	protected void WriteLiteral(string literal) => Writer.Write(literal);
 
+	protected virtual Task InitializeTemplate() => Task.CompletedTask;
 	protected abstract Task ExecuteTemplate();
+
 	private void BeginGeneratingContent()
 	{
 		if (writer != null)
@@ -41,6 +43,7 @@ public abstract class RazorTemplate : HtmlContentItem
 		return ret;
 	}
 
+	protected override Task CoreInitialize() => InitializeTemplate();
 	protected override async Task<string> CoreGenerateContent()
 	{
 		BeginGeneratingContent();
@@ -96,7 +99,7 @@ public abstract class RazorPage : RazorTemplate
 		var fileName = Path.GetFileNameWithoutExtension(Origin.ContentRelativePath);
 		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : "")];
 
-		return Task.CompletedTask;
+		return InitializeTemplate();
 	}
 }
 
@@ -117,9 +120,6 @@ public abstract class RazorLayout : RazorTemplate
 
 		return ret;
 	}
-
-	protected override Task CoreWriteContent(Stream outStream, string outputPath)
-		=> throw new NotSupportedException();
 
 	protected Task<string> RenderSection(string name, bool required = true)
 	{
@@ -143,8 +143,21 @@ public abstract class RazorLayout : RazorTemplate
 
 	protected Task<string> RenderBody() => Task.FromResult(Body?.Content ?? "");
 
-	[Obsolete("Did you forget to await a RenderBody or RenderSection expression?", error:true)]
+	protected string? GetTitle()
+	{
+		return Body switch
+		{
+			IPage page => page.Title,
+			RazorLayout inner => inner.GetTitle(),
+			_ => null,
+		};
+	}
+
+	[Obsolete("Did you forget to await a RenderBody or RenderSection expression?", error: true)]
 	protected void Write(Task<string> value) => throw new NotSupportedException();
+	
+	protected override Task CoreWriteContent(Stream outStream, string outputPath)
+		=> throw new NotSupportedException();
 }
 
 public abstract class RazorPartial : RazorTemplate

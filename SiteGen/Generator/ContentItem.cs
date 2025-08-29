@@ -93,12 +93,12 @@ public abstract class ContentItem
 		}
 	}
 
-	private void ThrowIfNotInitializing()
+	protected void ThrowIfNotInitializing()
 	{
 		lock (SyncLock)
 		{
 			if (!isInitializing)
-				throw new InvalidOperationException("These properties can only be modified during initialization.");
+				throw new InvalidOperationException("This member can only be used during initialization.");
 		}
 	}
 
@@ -163,4 +163,9 @@ public abstract class ContentOrigin
 public interface IHtmlContent
 {
 	string Content { get; }
+}
+
+public interface IPage
+{
+	string? Title { get; }
 }

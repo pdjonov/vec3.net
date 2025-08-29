@@ -36,8 +36,72 @@ partial class Project
 				b.Features.Add(new FixupRazorClass(project));
 				b.Features.Add(new FullyQualifyBaseType());
 
+				RazorPageDirective.Register(b);
 				SectionDirective.Register(b);
 			});
+	}
+
+	private class RazorPageDirective : IntermediateNodePassBase, IRazorDirectiveClassifierPass
+	{
+		public static void Register(RazorProjectEngineBuilder builder)
+		{
+			builder.AddDirective(Directive);
+			builder.Features.Add(new RazorPageDirective());
+		}
+
+		public static readonly DirectiveDescriptor Directive = DirectiveDescriptor.CreateSingleLineDirective(
+			"page",
+			builder =>
+			{
+				builder.AddOptionalStringToken("title", "The page's title.");
+			});
+
+		protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
+		{
+			var classNode = documentNode.FindPrimaryClass();
+			if (classNode == null)
+				return;
+
+			var pageDirective = documentNode.FindDirectiveReferences(Directive).SingleOrDefault();
+			if (pageDirective.Node is not DirectiveIntermediateNode directiveNode)
+				return;
+
+			classNode.Interfaces.Add(GlobalPrefix + typeof(IPage).FullName);
+			classNode.Children.Add(new PropertyDeclarationIntermediateNode()
+			{
+				Modifiers = { "public" },
+				PropertyType = "string",
+				PropertyName = nameof(IPage.Title),
+			});
+
+			if (directiveNode.Tokens.FirstOrDefault() is DirectiveTokenIntermediateNode titleToken)
+			{
+				var initMethod = GetInitializeMethod(classNode);
+
+				initMethod.Children.Add(new CSharpCodeIntermediateNode()
+				{
+					Children =
+					{
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = "Title = ",
+						},
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = titleToken.Content,
+						},
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = ";",
+						},
+					},
+					Source = titleToken.Source,
+				});
+			}
+		}
 	}
 
 	private class FixupRazorClass(Project engine) : RazorEngineFeatureBase, IRazorDocumentClassifierPass
@@ -107,6 +171,26 @@ partial class Project
 
 			classNode.BaseType = GlobalPrefix + type.FullName;
 		}
+	}
+
+	private static MethodDeclarationIntermediateNode GetInitializeMethod(ClassDeclarationIntermediateNode classNode)
+	{
+		var ret = classNode.Children.
+			OfType<MethodDeclarationIntermediateNode>().
+			FirstOrDefault(tok => tok.MethodName == "InitializeTemplate");
+		if (ret == null)
+		{
+			ret = new MethodDeclarationIntermediateNode()
+			{
+				Modifiers = { "protected", "override", "async" },
+				ReturnType = GlobalPrefix + typeof(Task).FullName,
+				MethodName = "InitializeTemplate",
+			};
+
+			classNode.Children.Add(ret);
+		}
+
+		return ret;
 	}
 
 	private static readonly MetadataReference[] metadataReferences =

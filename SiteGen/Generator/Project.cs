@@ -75,7 +75,7 @@ public partial class Project
 				{
 					".cshtml" when name.StartsWith('_') => null,
 					".cshtml" => (ContentItem)await GetRazorPage(origin),
-					".cs" => null, //model files,ignore these for now
+					".cs" => null, //additional code files,ignore these for now
 					".md" => (ContentItem)new MarkdownPage(origin),
 					_ => (ContentItem)new AssetFile(origin),
 				};
@@ -91,6 +91,7 @@ public partial class Project
 					//skip "hidden" and utility dot-dirs
 					continue;
 
+				//DO NOT parallelize this without syncing access to shared vars!
 				await ScanDirectory(dir);
 			}
 		}

@@ -1,8 +1,65 @@
 <!DOCTYPE html>
-	<head>
-		@await RenderSection("head", required: false)
-	</head>
-	<body>
+
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>@(GetTitle() ?? "Lone Henchman")</title>
+
+	<link rel="icon" type="image/png" sizes="64x64" href="assets/img/favicon/favicon-64.png">
+	<link rel="icon" type="image/png" sizes="48x48" href="assets/img/favicon/favicon-48.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="assets/img/favicon/favicon-32.png">
+	<link rel="icon" type="image/png" sizes="24x24" href="assets/img/favicon/favicon-24.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="assets/img/favicon/favicon-16.png">
+	<meta name="theme-color" content="#1e1e1e">
+
+	@* mathjax *@
+	<script>
+		MathJax = {
+			tex: {
+				inlineMath: { '[+]': [['$', '$']] },
+				processEscapes: true
+			}
+		};
+	</script>
+	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.js"></script>
+
+	@* highlightjs *@
+	<link rel="stylesheet" href="/assets/hljs/hljs.css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.2/highlight.min.js"></script>
+	<script src="assets/hljs/hlsl.js"></script>
+
+	@* canvas *@
+	<script src="/assets/canvas.js"></script>
+
+	@* CSS *@
+	<link href="assets/style.css" rel="stylesheet" />
+
+	@* Page-specific extras *@
+	@await RenderSection("head", required: false)
+</head>
+
+<body class="main">
+	<div class="top-row">
+		<a class="title" href="/">
+			<h1 class="site-title">
+				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor"
+					style="height:0.75em;margin-right: -0.25em;">
+					<path
+						d="M480-654Zm174 174Zm-348 0Zm174 174Zm0-234L360-660v-220h240v220L480-540Zm180 180L540-480l120-120h220v240H660Zm-580 0v-240h220l120 120-120 120H80ZM360-80v-220l120-120 120 120v220H360Zm120-574 40-40v-106h-80v106l40 40ZM160-440h106l40-40-40-40H160v80Zm280 280h80v-106l-40-40-40 40v106Zm254-280h106v-80H694l-40 40 40 40Z" />
+				</svg>
+				Lone Henchman
+			</h1>
+			<div class="site-subtitle">Sometimes about tools, sometimes about graphics, sometimes I just ramble.</div>
+		</a>
+		<div class="links-bg"></div>
+		<div class="links">
+			<a href="/">Home</a>
+			<a href="/posts">Posts</a>
+		</div>
+	</div>
+
+	<div class="content">
 		@await RenderBody()
-	</body>
+	</div>
+</body>
+
 </html>
