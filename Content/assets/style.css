@@ -73,7 +73,8 @@
 }
 .main .top-row .links a:hover {
     color: #B8B6B6;
-    background: linear-gradient(transparent 16px, #0006)
+    background: linear-gradient(transparent 16px, #0006);
+    border-radius: 0 0 4px 4px;
 }
 
 /* Body */
