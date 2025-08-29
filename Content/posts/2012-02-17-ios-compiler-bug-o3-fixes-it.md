@@ -1,15 +1,9 @@
 ---
-id: 297
 title: 'iOS Compiler Bug: -O3 FIXES It?!'
-date: 2012-02-17T15:48:41-08:00
-author: phill
-guid: http://vec3.ca/?p=297
-permalink: /posts/ios-compiler-bug-o3-fixes-it
-categories:
-  - build
-  - iOS
 tags:
   - Apple
+  - iOS
+  - build
   - bugs
   - code
   - xcode

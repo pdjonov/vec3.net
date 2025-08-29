@@ -1,8 +1,5 @@
 ---
 title: "Dynamic Descriptor Pools"
-date: 2025-08-01
-author: phill
-permalink: /posts/dynamic-descriptor-pools
 tags:
   - code
   - programming

@@ -1,9 +1,7 @@
 ---
 title: "Camera Math"
-date: 2025-08-07
-updated: 2025-08-10
-author: phill
-permalink: /posts/camera-math
+updated:
+  - 2025-08-10
 tags:
   - math
   - graphics

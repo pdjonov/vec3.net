@@ -1,8 +1,5 @@
 ---
 title: "Dynamic Graphics Buffers"
-date: 2025-07-30
-author: phill
-permalink: /posts/dynamic-graphics-buffers
 tags:
   - code
   - programming

@@ -1,12 +1,8 @@
-id: 146
+---
 title: MSBuild and Visual Studio's Hosting of It
-date: 2009-10-06T14:37:15-07:00
-author: phill
-guid: http://vec3.ca/?p=146
-permalink: /posts/msbuild-and-visual-studios-hosting-of-it
-categories:
-  - build
-  - code
+tags:
+    - build
+    - MSBuild
 ---
 This is an interesting issue that might have bitten you if you've been trying to get code generators to play nicely in C# projects.
 

@@ -1,14 +1,5 @@
 ---
-id: 644
 title: Using Win32 Icons in WPF
-date: 2012-08-09T01:13:14-07:00
-author: phill
-guid: http://vec3.ca/?p=644
-permalink: /posts/using-win32-icons-in-wpf
-categories:
-  - code
-  - Windows
-  - WPF
 tags:
   - 'C#'
   - code

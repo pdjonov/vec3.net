@@ -1,8 +1,5 @@
 ---
 title: "Building Content: Scripting With C#"
-date: 2025-08-10
-author: phill
-permalink: /posts/building-content-scripting-with-csharp
 series: content-builder
 tags:
   - content

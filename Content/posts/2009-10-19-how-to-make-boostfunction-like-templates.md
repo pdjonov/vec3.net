@@ -1,20 +1,13 @@
 ---
-id: 162
 title: How to Make boost::function-like Templates
-date: 2009-10-19T14:46:53-07:00
-author: phill
-guid: http://vec3.ca/?p=162
-permalink: /posts/how-to-make-boostfunction-like-templates
-categories:
-  - code
 tags:
-  - code
-  - templates
-EditorsNotes:
-  - Type: warning
-    Date: 2025-07-19
-    Text: >
-        This post was written before C++11 introduced variadic templates. The section about specializing for each arity should just read "use a parameter pack".
+    - code
+    - templates
+notes:
+    - type: warning
+      date: 2025-07-19
+      text: >
+          This post was written before C++11 introduced variadic templates. The section about specializing for each arity should just read "use a parameter pack".
 ---
 If you've dealt with Boost at all, you've certainly seen this at some point:
 

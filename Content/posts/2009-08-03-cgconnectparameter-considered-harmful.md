@@ -1,13 +1,7 @@
 ---
 title: cgConnectParameter Considered Harmful
-date: 2009-08-03
-author: phill
-permalink: cgconnectparameter-considered-harmful
-categories:
-  - code
-  - shaders
 tags:
-  - code
+    - code
 ---
 Hooking up a large number of shared effect parameters to a single head parameter via `cgConnectParameter` is, apparently, not the intended use case. Doing so causes any `cgSetParameter` call on the head parameter to become orders of magnitude slower (though the amount is proportional to the number of connected effect parameters). This is also the case when deferred parameter setting is used, which is a fairly surprising result, given that it should mean that parameter values don't force any sort of evaluation until something actually goes to read from them.
 

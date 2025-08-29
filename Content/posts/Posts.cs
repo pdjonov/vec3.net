@@ -9,7 +9,13 @@ public class PostFrontMatter : IFrontMatter
 	public string? Title { get; set; } //IFrontMatter.Title
 	public string? Permalink { get; set; } //IFrontMatter.Permalink
 	public DateTime? Date;
+	public TimeSpan? Time;
+	public DateTime[]? Updated;
+	public string Author = "phill";
+	public string? Series;
+	public string? SeriesTitle;
 	public string[]? Tags;
+	public Note[]? Notes;
 
 	void IFrontMatter.Populate(FileContentItem page)
 	{
@@ -39,4 +45,11 @@ public class PostFrontMatter : IFrontMatter
 
 	private static readonly Regex parseFileName = new Regex(@"^(?:(?<date>\d{4}-\d{2}-\d{2})-)?(?<link>.+)$",
 		RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Singleline);
+}
+
+public class Note
+{
+	public string Type = "info";
+	public DateTime Date;
+	public string Text;
 }

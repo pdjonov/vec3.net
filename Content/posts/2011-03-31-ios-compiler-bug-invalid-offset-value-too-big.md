@@ -1,18 +1,12 @@
 ---
-id: 173
 title: >
-  iOs Compiler (Bug?): "invalid offset, value too big"
-date: 2011-03-31T14:58:48-07:00
-author: phill
-guid: http://vec3.ca/?p=173
-permalink: /posts/ios-compiler-bug-invalid-offset-value-too-big
-categories:
-  - build
-  - iOS
+    iOs Compiler (Bug?): "invalid offset, value too big"
 tags:
-  - Apple
-  - bugs
-  - code
+    - Apple
+    - iOS
+    - build
+    - bugs
+    - code
 ---
 This is a bug that's bit me a few times already. Basically, the iOS compiler fails to generate some function somewhere in the code file causing it to bail with the error "invalid offset, value too big". Problem is, it doesn't tell you which function it failed on (the numbers surrounding the error seem largely meaningless).
 

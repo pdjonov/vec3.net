@@ -1,14 +1,6 @@
 ---
-id: 976
 title: 'HenchLua: Representing Values'
-date: 2013-09-04T03:37:24-07:00
-author: phill
-guid: http://vec3.ca/?p=976
-permalink: /posts/henchlua-representing-values
-categories:
-  - code
-  - HenchLua
-  - Lua
+time: 15:00
 tags:
   - 'C#'
   - code

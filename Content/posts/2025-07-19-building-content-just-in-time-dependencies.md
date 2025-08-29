@@ -1,8 +1,5 @@
 ---
 title: "Building Content: Just-In-Time Dependency Graphs"
-date: 2025-07-19
-author: phill
-permalink: /posts/building-content-just-in-time-dependencies
 series: content-builder
 tags:
   - content

@@ -1,16 +1,10 @@
 ---
-id: 269
 title: Using Win32 Asynchronous I/O
-date: 2012-02-03T23:12:36-08:00
-author: phill
-guid: http://vec3.ca/?p=269
-permalink: /posts/using-win32-asynchronous-io
-categories:
-  - code
 tags:
-  - code
-  - io
-  - loading
+    - code
+    - async
+    - io
+    - loading
 ---
 Recently wrote some asynchronous I/O code for a fast data loader. The data file was logically a stream of separate objects, so it made sense to parse it a chunk at a time. That's a situation which practically screams for asynchronous I/O. Unfortunately, it's rather hard to find a useful example on how to use the relevant APIs...
 
@@ -23,31 +17,31 @@ We also need to keep one interesting thing in mind - getting the best performanc
 ```c++
 //get the system's page size and compute
 //the size of data chunk we'll be dealing with
- 
+
 SYSTEM_INFO osInfo;
 GetSystemInfo( &osInfo );
- 
+
 DWORD chunkSize = osInfo.dwPageSize * 32;
- 
+
 //the maximum number of concurrent read requests
 //we'll issue - plus one!
 #define NUM_REQS 16
- 
+
 HANDLE ev[NUM_REQS];
 OVERLAPPED olp[NUM_REQS];
 void *buf[NUM_REQS];
- 
+
 //allocate the data buffers
- 
+
 buf[] = VirtualAlloc( NULL, chunkSize * NUM_REQS,
-	MEM_COMMIT, PAGE_READWRITE );
+    MEM_COMMIT, PAGE_READWRITE );
 for( int i = 1; i < NUM_REQS; i++ )
-	buf[i] = (char*)buf[i - 1] + chunkSize;
- 
+    buf[i] = (char*)buf[i - 1] + chunkSize;
+
 //create the events
- 
+
 for( int i = ; i < NUM_REQS; i++ )
-	ev[i] = CreateEvent( NULL, TRUE, FALSE, NULL );
+    ev[i] = CreateEvent( NULL, TRUE, FALSE, NULL );
 ```
 
 And we're now ready to open the file.
@@ -63,11 +57,11 @@ HANDLE file = CreateFile( path, GENERIC_READ, FILE_SHARE_READ,
 	NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL |
 	FILE_FLAG_SEQUENTIAL_SCAN | FILE_FLAG_NO_BUFFERING |
 	FILE_FLAG_OVERLAPPED, NULL );
- 
+
 if( file == INVALID_HANDLE_VALUE )
 	//handle errors
 	;
- 
+
 LARGE_INTEGER size;
 GetFileSizeEx( file, &size );
 ULONGLONG numChunks = (size.QuadPart + chunkSize - 1) / chunkSize;
@@ -83,18 +77,18 @@ So, now that the file's open, we need to start kicking off read requests via [Re
 void RequestChunk( ULONGLONG chunkNum )
 {
 	int n = chunkNum % NUM_REQS;
- 
+
 	OVERLAPPED *o = &olp[n];
 	void *b = buf[n];
- 
+
 	memset( o, , sizeof( OVERLAPPED ) );
- 
+
 	LARGE_INTEGER ofs;
 	ofs.QuadPart = chunkNum * chunkSize;
 	o.Offset = ofs.LowPart;
 	o.OffsetHigh = ofs.HighPart;
 	o.hEvent = ev[i];
- 
+
 	ReadFile( file, b, chunkSize, NULL, o );
 }
 ```
@@ -116,20 +110,20 @@ And now we (finally) come to the heart of algorithm. This is where we actually l
 for( ULONGLONG i = ; i < numChunks; i++ )
 {
 	int n = i % NUM_REQS;
- 
+
 	OVERLAPPED *o = &olp[n];
 	void *b = buf[n];
- 
+
 	DWORD cb;
 	GetOverlappedResult( file, o, &cb, TRUE );
- 
+
 	ULONGLONG nextRequest = i + NUM_REQS - 1;
 	if( nextRequest < numChunks)
 		RequestChunk( nextRequest );
- 
+
 	//b points at our current chunk,
 	//which has cb bytes of data in it
- 
+
 	ParseChunk( b, cb );
 }
 ```

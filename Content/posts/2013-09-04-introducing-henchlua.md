@@ -1,14 +1,6 @@
 ---
-id: 964
 title: Introducing HenchLua
-date: 2013-09-04T01:47:01-07:00
-author: phill
-guid: http://vec3.ca/?p=964
-permalink: /posts/introducing-henchlua
-categories:
-  - code
-  - HenchLua
-  - Lua
+time: 13:00
 tags:
   - 'C#'
   - code

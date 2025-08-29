@@ -1,8 +1,5 @@
 ---
 title: "Don't Forget the Inline!"
-date: 2025-07-30
-author: phill
-permalink: /posts/dont-forget-the-inline
 tags:
   - code
   - programming

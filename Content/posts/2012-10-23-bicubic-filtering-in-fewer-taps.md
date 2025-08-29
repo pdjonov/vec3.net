@@ -1,14 +1,5 @@
 ---
-id: 767
 title: Bicubic Filtering in Fewer Taps
-date: 2012-10-23T16:21:02-07:00
-author: phill
-guid: http://vec3.ca/?p=767
-permalink: /posts/bicubic-filtering-in-fewer-taps
-categories:
-  - code
-  - graphics
-  - shaders
 tags:
   - code
   - graphics

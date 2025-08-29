@@ -1,12 +1,5 @@
 ---
-id: 615
 title: 'Visual C#: Phantom Breakpoints'
-date: 2012-04-22T20:50:01-07:00
-author: phill
-guid: http://vec3.ca/?p=615
-permalink: /posts/visual-c-sharp-phantom-breakpoints
-categories:
-  - code
 tags:
   - 'C#'
   - programming

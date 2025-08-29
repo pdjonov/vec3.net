@@ -1,14 +1,5 @@
 ---
-id: 499
 title: "The Player's Name vs Localization"
-date: 2012-03-26T21:46:49-07:00
-author: phill
-guid: http://vec3.ca/?p=499
-permalink: /posts/the-players-name-vs-localization
-categories:
-  - design
-  - language
-  - Uncategorized
 tags:
   - design
   - language

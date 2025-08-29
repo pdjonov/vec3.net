@@ -1,12 +1,5 @@
 ---
-id: 212
 title: Rhythm Spirit
-date: 2010-07-09T11:59:46-07:00
-author: phill
-guid: http://vec3.ca/?p=212
-permalink: /posts/rhythm-spirit
-categories:
-  - asides
 ---
 Holy crap, it's finally shipped. Now I may die peacefully...
 

@@ -1,14 +1,5 @@
 ---
-id: 730
 title: Simple Flip Book Animation in WPF
-date: 2012-09-13T03:50:43-07:00
-author: phill
-guid: http://vec3.ca/?p=730
-permalink: /posts/simple-flip-book-animation-in-wpf
-categories:
-  - code
-  - Windows
-  - WPF
 tags:
   - 'C#'
   - code

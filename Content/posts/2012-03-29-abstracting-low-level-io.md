@@ -1,12 +1,5 @@
 ---
-id: 570
 title: Abstracting Low-Level I/O
-date: 2012-03-29T17:36:23-07:00
-author: phill
-guid: http://vec3.ca/?p=570
-permalink: /posts/abstracting-low-level-io
-categories:
-  - code
 tags:
   - code
   - io

@@ -208,7 +208,13 @@ partial class Project
 		foreach (var asm in Directory.EnumerateFiles(refDir, "*.dll"))
 			ret.Add(MetadataReference.CreateFromFile(asm));
 
-		ret.Add(MetadataReference.CreateFromFile(typeof(Project).Assembly.Location));
+		Type[] referenceAssembliesOf =
+			[
+				typeof(Project),
+				typeof(Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemAttribute),
+			];
+		foreach (var typ in referenceAssembliesOf)
+			ret.Add(MetadataReference.CreateFromFile(typ.Assembly.Location));
 
 		return ret;
 	}

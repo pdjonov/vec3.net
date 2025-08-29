@@ -1,13 +1,5 @@
 ---
-id: 650
 title: Working With Win32 Resources in .NET
-date: 2012-08-09T00:32:45-07:00
-author: phill
-guid: http://vec3.ca/?p=650
-permalink: /posts/working-with-win32-resources-in-dot-net
-categories:
-  - code
-  - Windows
 tags:
   - 'C#'
   - code

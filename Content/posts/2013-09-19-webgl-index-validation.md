@@ -1,13 +1,5 @@
 ---
-id: 1000
 title: WebGL Index Validation
-date: 2013-09-19T19:27:26-07:00
-author: phill
-guid: http://vec3.ca/?p=1000
-permalink: /posts/webgl-index-validation
-categories:
-  - code
-  - graphics
 tags:
   - code
   - graphics

@@ -1,13 +1,5 @@
 ---
-id: 584
 title: Getting Started with OpenSL on Android
-date: 2012-04-22T18:34:32-07:00
-author: phill
-guid: http://vec3.ca/?p=584
-permalink: /posts/getting-started-with-opensl-on-android
-categories:
-  - Android
-  - code
 tags:
   - Android
   - audio

@@ -1,14 +1,5 @@
 ---
-id: 618
 title: Windowed Fullscreen
-date: 2012-04-29T14:52:57-07:00
-author: phill
-guid: http://vec3.ca/?p=618
-permalink: /posts/windowed-fullscreen
-categories:
-  - code
-  - graphics
-  - Windows
 tags:
   - 'C#'
   - code

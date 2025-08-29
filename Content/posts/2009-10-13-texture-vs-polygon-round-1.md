@@ -1,12 +1,7 @@
 ---
-id: 166
 title: 'Texture vs. Polygon: Round 1'
-date: 2009-10-13T14:53:05-07:00
-author: phill
-guid: http://vec3.ca/?p=166
-permalink: /posts/texture-vs-polygon-round-1
-categories:
-  - graphics
+tags:
+    - graphics
 ---
 I recently critiqued some work-in-progress game art for an (I guess) art student, and it struck me that it can be fairly hard for a newcomer to judge where to put their details. Some details don't work very well as geometry. Others don't work well in a texture. Knowing where to put a given mark or line is the difference between effectively using your polygon budget to produce mind-blowingly good scenes and a mess of blurry textures and too-perfect railings.
 

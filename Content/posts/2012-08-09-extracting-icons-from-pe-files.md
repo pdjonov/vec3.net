@@ -1,13 +1,5 @@
 ---
-id: 668
 title: Extracting Icons from PE Files
-date: 2012-08-09T01:07:18-07:00
-author: phill
-guid: http://vec3.ca/?p=668
-permalink: /posts/extracting-icons-from-pe-files
-categories:
-  - code
-  - Windows
 tags:
   - 'C#'
   - code

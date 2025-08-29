@@ -1,8 +1,5 @@
 ---
 title: "Ring Buffers"
-date: 2025-07-29
-author: phill
-permalink: /posts/ring-buffers
 tags:
   - code
   - programming

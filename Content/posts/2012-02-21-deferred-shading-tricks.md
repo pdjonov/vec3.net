@@ -1,14 +1,9 @@
 ---
-id: 407
 title: Deferred Shading Tricks
-date: 2012-02-21T03:13:20-08:00
-author: phill
-guid: http://vec3.ca/?page_id=407
-permalink: /posts/deferred-shading-tricks
 tags:
-    - code
-    - graphics
-    - shaders
+  - code
+  - graphics
+  - shaders
 ---
 [Deferred shading](http://en.wikipedia.org/wiki/Deferred_shading) is a useful technique available on modern GPUs that allows one to decouple scene and lighting complexity. I'm not really writing a for-beginners article here. This is aimed at people who've got a basic engine set up and want to tune it.
 
