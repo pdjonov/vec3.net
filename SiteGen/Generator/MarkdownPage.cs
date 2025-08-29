@@ -37,7 +37,7 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 
 		source = await Project.ParseMarkdown(sourceText);
 
-		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
+		OutputPath = Path.ChangeExtension(Origin.ContentRelativePath, ".html");
 
 		var frontMatterYamlBlock = source.
 			Descendants<YamlFrontMatterBlock>().
@@ -90,9 +90,8 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 					title = typedTitleNode.Value;
 			}
 
-			this.OutputPaths = !string.IsNullOrEmpty(permalink) ?
-				[Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, permalink)] :
-				[Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
+			if (!string.IsNullOrEmpty(permalink))
+				OutputPath = Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, permalink);
 			this.FrontMatter = frontMatter;
 			this.Title = title;
 		}

@@ -7,7 +7,7 @@ public class AssetFile(InputFile origin) : FileContentItem(origin)
 {
 	protected override Task CoreInitialize()
 	{
-		OutputPaths = [Origin.ContentRelativePath];
+		OutputPath = Origin.ContentRelativePath;
 		return Task.CompletedTask;
 	}
 

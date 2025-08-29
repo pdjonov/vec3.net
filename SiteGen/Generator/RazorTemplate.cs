@@ -112,7 +112,7 @@ public abstract class RazorPage : RazorTemplate
 	protected override Task CoreInitialize()
 	{
 		var fileName = Path.GetFileNameWithoutExtension(Origin.ContentRelativePath);
-		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : "")];
+		OutputPath = Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : "");
 
 		return InitializeTemplate();
 	}

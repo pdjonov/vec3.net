@@ -18,18 +18,25 @@ public abstract class ContentItem
 		this.Origin = origin;
 	}
 
-	private ImmutableArray<string> outputPaths = [];
-	public ImmutableArray<string> OutputPaths
+	private string? outputPath;
+	public string? OutputPath
 	{
 		get
 		{
 			ThrowIfNotInitialized();
-			return outputPaths;
+			return outputPath;
 		}
 		protected set
 		{
+			if (value != null)
+			{
+				if (value == "")
+					throw new ArgumentException(paramName: nameof(OutputPath), message: "The output path must not be empty.");
+				Helpers.ValidateRelativePath(value, paramName: nameof(OutputPath));
+			}
+
 			ThrowIfNotInitializing();
-			outputPaths = !value.IsDefault ? value : [];
+			outputPath = value;
 		}
 	}
 	private object? frontMatter;

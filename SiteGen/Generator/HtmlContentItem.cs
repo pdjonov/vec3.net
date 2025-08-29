@@ -27,7 +27,7 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 		}
 	}
 
-	protected virtual bool ShouldApplyLayout => !OutputPaths.IsEmpty;
+	protected virtual bool ShouldApplyLayout => OutputPath != null;
 
 	private Task<string>? applyLayoutTask;
 

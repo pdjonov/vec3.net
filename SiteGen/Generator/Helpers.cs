@@ -29,7 +29,7 @@ internal static class Helpers
 
 	public static void ValidateRelativePath(string path, bool mustBeNormalized = true, bool mustNotEscapeRoot = true, [CallerArgumentExpression(nameof(path))] string paramName = "path")
 	{
-		ArgumentNullException.ThrowIfNull(path);
+		ArgumentNullException.ThrowIfNull(path, paramName: paramName);
 
 		if (path.Contains('\\'))
 			throw new ArgumentException(paramName: paramName, message: "Path must use forward slashes.");

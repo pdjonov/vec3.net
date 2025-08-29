@@ -111,9 +111,9 @@ public partial class Project
 
 		var conflictingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		foreach (var f in content)
-			foreach (var o in f.OutputPaths)
-				if (!ret.Items.TryAdd(o, f))
-					conflictingPaths.Add(o);
+			if (f.OutputPath != null)
+				if (!ret.Items.TryAdd(f.OutputPath, f))
+					conflictingPaths.Add(f.OutputPath);
 
 		if (conflictingPaths.Count != 0)
 			throw new InvalidDataException("Multiple items are conflicting over the following output paths: " + string.Join(", ", conflictingPaths.Order()));
