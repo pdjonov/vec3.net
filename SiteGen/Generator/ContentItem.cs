@@ -47,7 +47,7 @@ public abstract class ContentItem
 		}
 	}
 
-	private readonly Lock syncObj = new();
+	protected Lock SyncLock { get; } = new();
 
 	private Task? coreInitializeTask;
 	private Task? corePrepareTask;
@@ -59,21 +59,21 @@ public abstract class ContentItem
 	/// </summary>
 	public Task Initialize()
 	{
-		lock (syncObj)
+		lock (SyncLock)
 			return coreInitializeTask ??= DoInitialize();
 
 		async Task DoInitialize()
 		{
 			try
 			{
-				lock (syncObj)
+				lock (SyncLock)
 					isInitializing = true;
 
 				await CoreInitialize();
 			}
 			finally
 			{
-				lock (syncObj)
+				lock (SyncLock)
 					isInitializing = false;
 			}
 		}
@@ -83,7 +83,7 @@ public abstract class ContentItem
 
 	protected void ThrowIfNotInitialized()
 	{
-		lock (syncObj)
+		lock (SyncLock)
 		{
 			if (coreInitializeTask == null || !coreInitializeTask.IsCompleted)
 				throw new InvalidOperationException("This content item has not been initialized.");
@@ -95,7 +95,7 @@ public abstract class ContentItem
 
 	private void ThrowIfNotInitializing()
 	{
-		lock (syncObj)
+		lock (SyncLock)
 		{
 			if (!isInitializing)
 				throw new InvalidOperationException("These properties can only be modified during initialization.");
@@ -107,7 +107,7 @@ public abstract class ContentItem
 	/// </summary>
 	public Task PrepareContent()
 	{
-		lock (syncObj)
+		lock (SyncLock)
 		{
 			ThrowIfNotInitialized();
 			return corePrepareTask ??= CorePrepareContent();
@@ -118,7 +118,7 @@ public abstract class ContentItem
 
 	protected void ThrowIfNotPrepared()
 	{
-		lock (syncObj)
+		lock (SyncLock)
 		{
 			if (corePrepareTask == null || !corePrepareTask.IsCompleted)
 				throw new InvalidOperationException("This content item hasn't been prepared.");
@@ -158,4 +158,9 @@ public abstract class ContentOrigin
 
 		this.Project = project;
 	}
+}
+
+public interface IHtmlContent
+{
+	string Content { get; }
 }

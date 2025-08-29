@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -59,7 +60,7 @@ partial class Project
 			classNode.BaseType = info.BaseType.FullName;
 
 			var methodNode = documentNode.FindPrimaryMethod();
-			methodNode.MethodName = "GenerateContent";
+			methodNode.MethodName = "ExecuteTemplate";
 			methodNode.Modifiers[0] = "protected";
 
 			var baseCtor = info.BaseType.
@@ -125,35 +126,49 @@ partial class Project
 			typeof(RazorLayout),
 		];
 
-	const string GlobalPrefix = "global::";
+	private const string GlobalPrefix = "global::";
 
-	private async Task<RazorPage> GetRazorPage(InputFile origin)
+	private Task<RazorPage> GetRazorPage(InputFile origin)
+		=> GetRazorTemplate<RazorPage>(origin);
+
+	private async Task<T> GetRazorTemplate<T>(InputFile origin)
+		where T : RazorTemplate
 	{
 		var info = GetRazorPageInfo(origin.ContentRelativePath);
 		await info.InitializationTask;
 
-		return (RazorPage)info.Create(origin);
+		Debug.Assert(info.PageType.IsAssignableTo(typeof(T)));
+
+		return (T)info.Create(origin);
 	}
-		
-	// public async Task<Func<Template>> GetRazorPage(string path)
-	// {
-	// 	var info = GetRazorPageInfo(path);
-	// 	await info.InitializationTask;
 
-	// 	return info.Create;
-	// }
+	private const string LayoutTemplateName = "_layout.cshtml";
 
-	// public async Task<Func<T>> GetRazorPage<T>(string path)
-	// 	where T : Template
-	// {
-	// 	var info = GetRazorPageInfo(path);
-	// 	await info.InitializationTask;
+	public async Task<string> ApplyLayout(HtmlContentItem content)
+	{
+		ArgumentNullException.ThrowIfNull(content);
 
-	// 	if (!typeof(T).IsAssignableFrom(info.PageType))
-	// 		throw new ArgumentException($"The template '{path}' is not derived from {typeof(T).Name}");
+		var body = content;
+		for (string dir, path = content.ContentRelativePath; !string.IsNullOrEmpty(path); path = dir)
+		{
+			dir = Path.GetDirectoryName(path)!;
+			var layoutFile = Path.Combine(dir, LayoutTemplateName);
 
-	// 	return () => (T)info.Create();
-	// }
+			if (!File.Exists(layoutFile))
+				continue;
+
+			var layout = await GetRazorTemplate<RazorLayout>(new InputFile(this, layoutFile));
+
+			layout.Body = body;
+
+			await layout.Initialize();
+			await layout.PrepareContent();
+
+			body = layout;
+		}
+
+		return body.Content;
+	}
 
 	private RazorTemplateInfo GetRazorPageInfo(string path)
 	{
@@ -185,7 +200,7 @@ partial class Project
 			//process the Razor page
 
 			var fileName = Path.GetFileName(SourcePath);
-			if (fileName == "_layout.cshtml")
+			if (fileName == LayoutTemplateName)
 				BaseType = typeof(RazorLayout);
 			else if (fileName.StartsWith('_'))
 				BaseType = typeof(RazorPartial);

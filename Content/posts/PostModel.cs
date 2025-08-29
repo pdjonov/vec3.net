@@ -1,6 +1,6 @@
 using System;
 
-[FrontMatterOf("*.md")]
+[FrontMatterOf("posts/*.md")]
 class PostModel
 {
 	public string? Title;

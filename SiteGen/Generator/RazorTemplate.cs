@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
 
-public abstract class RazorTemplate : FileContentItem
+public abstract class RazorTemplate : HtmlContentItem
 {
 	protected RazorTemplate(InputFile origin) : base(origin) { }
 
@@ -16,7 +16,7 @@ public abstract class RazorTemplate : FileContentItem
 	protected void Write(object obj) => Writer.Write(obj);
 	protected void WriteLiteral(string literal) => Writer.Write(literal);
 
-	protected abstract Task GenerateContent();
+	protected abstract Task ExecuteTemplate();
 	private void BeginGeneratingContent()
 	{
 		if (writer != null)
@@ -41,28 +41,28 @@ public abstract class RazorTemplate : FileContentItem
 		return ret;
 	}
 
-	private string? bodyText;
-
-	protected override async Task CorePrepareContent()
+	protected override async Task<string> CoreGenerateContent()
 	{
 		BeginGeneratingContent();
 		try
 		{
-			await GenerateContent();
+			await ExecuteTemplate();
 		}
 		catch
 		{
 			CancelGeneratingContent();
 			throw;
 		}
-		bodyText = EndGeneratingContent();
+		return EndGeneratingContent();
 	}
 
 	protected void DefineSection(string name, Func<Task> body) => sections.Add(name, body);
 	private readonly Dictionary<string, Func<Task>> sections = new(StringComparer.OrdinalIgnoreCase);
 
-	public Func<Task<string>>? RenderSection(string name, bool isRequired = true)
+	public virtual Func<Task<string>>? GetSection(string name, bool isRequired = true)
 	{
+		ThrowIfNotPrepared();
+
 		if (!sections.TryGetValue(name, out var sectionFunc))
 		{
 			if (isRequired)
@@ -85,15 +85,6 @@ public abstract class RazorTemplate : FileContentItem
 			return EndGeneratingContent();
 		};
 	}
-
-	protected override async Task CoreWriteContent(Stream outStream, string outputPath)
-	{
-		Debug.Assert(bodyText != null);
-
-		var writer = new StreamWriter(outStream);
-		await writer.WriteAsync(bodyText);
-		await writer.FlushAsync();
-	}
 }
 
 public abstract class RazorPage : RazorTemplate
@@ -102,7 +93,8 @@ public abstract class RazorPage : RazorTemplate
 
 	protected override Task CoreInitialize()
 	{
-		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
+		var fileName = Path.GetFileNameWithoutExtension(Origin.ContentRelativePath);
+		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : "")];
 
 		return Task.CompletedTask;
 	}
@@ -111,6 +103,48 @@ public abstract class RazorPage : RazorTemplate
 public abstract class RazorLayout : RazorTemplate
 {
 	protected RazorLayout(InputFile origin) : base(origin) { }
+
+	public IHtmlContent? Body { get; set; }
+
+	public override Func<Task<string>>? GetSection(string name, bool isRequired = true)
+	{
+		var ret = base.GetSection(name, isRequired: false);
+		if (ret == null && Body is RazorTemplate razorBody)
+			ret = razorBody.GetSection(name, isRequired: false);
+
+		if (ret == null && isRequired)
+			throw new KeyNotFoundException($"Required section '{name}' is not defined.");
+
+		return ret;
+	}
+
+	protected override Task CoreWriteContent(Stream outStream, string outputPath)
+		=> throw new NotSupportedException();
+
+	protected Task<string> RenderSection(string name, bool required = true)
+	{
+		if (Body is not RazorTemplate body)
+		{
+			if (required)
+				throw new KeyNotFoundException($"Required section '{name}' is not defined and cannot be because the body is not a Razor page.");
+
+			return Task.FromResult("");
+		}
+
+		var section = body.GetSection(name, required);
+		if (section == null)
+		{
+			Debug.Assert(!required);
+			return Task.FromResult("");
+		}
+
+		return section();
+	}
+
+	protected Task<string> RenderBody() => Task.FromResult(Body?.Content ?? "");
+
+	[Obsolete("Did you forget to await a RenderBody or RenderSection expression?", error:true)]
+	protected void Write(Task<string> value) => throw new NotSupportedException();
 }
 
 public abstract class RazorPartial : RazorTemplate

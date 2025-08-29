@@ -12,7 +12,7 @@ using YamlDotNet.RepresentationModel;
 
 namespace Vec3.Site.Generator;
 
-public class MarkdownPage(InputFile origin) : FileContentItem(origin)
+public class MarkdownPage(InputFile origin) : HtmlContentItem(origin)
 {
 	private MarkdownDocument? source;
 
@@ -43,23 +43,10 @@ public class MarkdownPage(InputFile origin) : FileContentItem(origin)
 		}
 	}
 
-	private string? finalContent;
-
-	protected override async Task CorePrepareContent()
+	protected override async Task<string> CoreGenerateContent()
 	{
 		Debug.Assert(source != null);
 
-		var html = Markdown.ToHtml(source, Project.MarkdownPipeline);
-
-		finalContent = html;
-	}
-
-	protected override async Task CoreWriteContent(Stream outStream, string outputPath)
-	{
-		Debug.Assert(finalContent != null);
-
-		var writer = new StreamWriter(outStream);
-		await writer.WriteAsync(finalContent);
-		await writer.FlushAsync();
+		return Markdown.ToHtml(source, Project.MarkdownPipeline);
 	}
 }
