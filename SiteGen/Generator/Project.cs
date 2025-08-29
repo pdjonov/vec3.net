@@ -77,7 +77,7 @@ public partial class Project
 				var origin = new InputFile(this, contentRelativePath: relPath);
 				var item = Path.GetExtension(name) switch
 				{
-					".cshtml" when name.StartsWith('_') => null,
+					_ when name.StartsWith('_') => null, //layouts, partials, utility files
 					".cshtml" => (ContentItem)await GetRazorPage(origin),
 					".cs" => (ContentItem)new SiteCode(origin),
 					".md" => (ContentItem)new MarkdownPage(origin),

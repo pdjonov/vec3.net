@@ -88,6 +88,21 @@ public abstract class RazorTemplate : HtmlContentItem
 			return EndGeneratingContent();
 		};
 	}
+
+	protected Task<string> RenderPartial(string path, object? model = null)
+	{
+		return Path.GetExtension(path) switch
+		{
+			".md" => RenderMarkdownPartial(path),
+			_ => throw new NotSupportedException(),
+		};
+
+		async Task<string> RenderMarkdownPartial(string path)
+		{
+			var source = await LoadText(path);
+			return await Project.RenderMarkdown(source);
+		}
+	}
 }
 
 public abstract class RazorPage : RazorTemplate

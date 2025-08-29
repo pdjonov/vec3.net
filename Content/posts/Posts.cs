@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 [FrontMatterOf("posts/*.md")]
@@ -52,4 +54,12 @@ public class Note
 	public string Type = "info";
 	public DateTime Date;
 	public string Text;
+}
+
+public static class Posts
+{
+	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> GetPosts(this IEnumerable<ContentItem> content)
+	{
+		throw new NotImplementedException();
+	}
 }

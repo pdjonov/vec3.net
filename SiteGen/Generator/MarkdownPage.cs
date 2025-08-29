@@ -9,7 +9,6 @@ using Markdig.Extensions.Yaml;
 using Markdig.Syntax;
 
 using YamlDotNet.RepresentationModel;
-using YamlDotNet.Serialization;
 
 namespace Vec3.Site.Generator;
 
@@ -34,9 +33,9 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 
 	protected override async Task CoreInitialize()
 	{
-		var sourceText = await File.ReadAllTextAsync(Origin.FullPath);
+		var sourceText = await LoadText(Origin.ContentRelativePath);
 
-		source = Markdown.Parse(sourceText, Project.MarkdownPipeline);
+		source = await Project.ParseMarkdown(sourceText);
 
 		OutputPaths = [Path.ChangeExtension(Origin.ContentRelativePath, ".html")];
 

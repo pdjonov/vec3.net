@@ -10,6 +10,8 @@ using Microsoft.Extensions.FileSystemGlobbing;
 using YamlDotNet.Serialization;
 
 using Markdig;
+using System.Threading.Tasks;
+using Markdig.Syntax;
 
 namespace Vec3.Site.Generator;
 
@@ -19,6 +21,31 @@ partial class Project
 		UseAdvancedExtensions().
 		UseYamlFrontMatter().
 		Build();
+
+	public Task<MarkdownDocument> ParseMarkdown(string markdownSource)
+	{
+		ArgumentNullException.ThrowIfNull(markdownSource);
+
+		var ret = Markdown.Parse(markdownSource, MarkdownPipeline);
+		return Task.FromResult(ret);
+	}
+
+	public Task<string> RenderMarkdown(MarkdownDocument document)
+	{
+		ArgumentNullException.ThrowIfNull(document);
+
+		var ret = Markdown.ToHtml(document, MarkdownPipeline);
+		return Task.FromResult(ret);
+	}
+
+	public Task<string> RenderMarkdown(string markdown)
+	{
+		ArgumentNullException.ThrowIfNull(markdown);
+
+		var doc = Markdown.Parse(markdown, MarkdownPipeline);
+		var ret = Markdown.ToHtml(doc, MarkdownPipeline);
+		return Task.FromResult(ret);
+	}
 
 	public IDeserializer YamlDeserializer { get; } =
 		new DeserializerBuilder().

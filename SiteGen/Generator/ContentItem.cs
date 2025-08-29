@@ -146,6 +146,19 @@ public abstract class ContentItem
 	}
 
 	protected abstract Task CoreWriteContent(Stream outStream, string outputPath);
+
+	protected Task<string> LoadText(string relativePath)
+	{
+		relativePath = Helpers.CombineContentRelativePaths(
+			relativeTo: Origin is InputFile inputFileOrigin ?
+				Path.GetDirectoryName(inputFileOrigin.ContentRelativePath)! : "",
+			path: relativePath);
+
+		//ToDo: track the dependency
+
+		var fullPath = Path.Combine(Project.ContentDirectory, relativePath);
+		return File.ReadAllTextAsync(fullPath);
+	}
 }
 
 public abstract class ContentOrigin
