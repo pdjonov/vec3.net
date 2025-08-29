@@ -19,12 +19,12 @@ public sealed class InputFile : ContentOrigin
 {
 	public string ContentRelativePath { get; }
 
-	public string FullPath => Path.Combine(Project.ContentDirectory, ContentRelativePath);
+	public string FullPath => Project.GetFullContentPath(ContentRelativePath);
 
 	public InputFile(Project project, string contentRelativePath)
 		: base(project)
 	{
-		Helpers.ValidateRelativePath(contentRelativePath);
+		Helpers.ValidateRootedPath(contentRelativePath);
 
 		this.ContentRelativePath = contentRelativePath;
 	}

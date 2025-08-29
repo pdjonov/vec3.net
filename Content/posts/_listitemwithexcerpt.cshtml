@@ -1,0 +1,17 @@
+@model MarkdownPage
+
+@{
+	var frontMatter = (PostFrontMatter)Model.FrontMatter;
+	var date = frontMatter.Date.Value;
+	var lastUpdated = frontMatter.LastUpdated.Value;
+}
+
+<div class="post-with-excerpt">
+	<h4><a href="@UrlTo(Model)">@frontMatter.Title <div class="post-date">@date.ToString("dd MMM yyyy")</div></a></h4>
+	@if (lastUpdated > date)
+	{
+		<div class="post-update-date">Updated: @lastUpdated.ToString("dd MMM yyyy")</div>
+	}
+	@* @Html.Raw(post.GetString(Keys.Excerpt)) *@
+	<a href="@UrlTo(Model)" class="read-more">Read more...</a>
+</div>

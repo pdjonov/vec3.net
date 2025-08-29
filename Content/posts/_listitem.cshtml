@@ -1,0 +1,16 @@
+@{
+	var post = Model;
+	var date = post.GetDateTime("date");
+	var updated = SiteSettings.GetLastUpdate(post);
+}
+
+<div class="post-no-excerpt">
+	<a href="@post.GetLink()">
+	@post.Get("Title")
+	<div class="post-date">@date.ToString("dd MMM yyyy")</div>
+	@if (updated > date)
+	{
+		<div class="post-update-date">(Updated: @updated.ToString("dd MMM yyyy"))</div>
+	}
+	</a>
+</div>

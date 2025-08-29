@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,7 +12,19 @@ public partial class Project
 {
 	public string ContentDirectory { get; }
 
+	public string GetFullContentPath(string contentRelativePath)
+	{
+		Helpers.ValidateRootedPath(contentRelativePath);
+		return Path.Combine(ContentDirectory, contentRelativePath.Substring(1));
+	}
+
 	public string OutputDirectory { get; }
+
+	public string GetFullOutputPath(string outputRelativePath)
+	{
+		Helpers.ValidateRootedPath(outputRelativePath);
+		return Path.Combine(OutputDirectory, outputRelativePath.Substring(1));
+	}
 
 	public string CacheDirectory { get; }
 	public string RazorCacheDirectory { get; }
@@ -51,6 +64,12 @@ public partial class Project
 		await CompileSiteCode(inputItems.OfType<SiteCode>());
 		inputItems.RemoveAll(it => it is SiteCode);
 
+		for (var i = 0; i < inputItems.Count; i++)
+			if (inputItems[i] is DeferredRazorPage d)
+				inputItems[i] = await GetRazorPage(d.Origin);
+
+		Debug.Assert(!inputItems.Any(i => i is DummyContent));
+
 		await Task.WhenAll(inputItems.Select(i => i.Initialize()));
 
 		content.AddRange(inputItems);
@@ -62,9 +81,9 @@ public partial class Project
 	{
 		var ret = new List<ContentItem>();
 
-		await ScanDirectory(ContentDirectory);
+		ScanDirectory(ContentDirectory);
 
-		async Task ScanDirectory(string path)
+		void ScanDirectory(string path)
 		{
 			foreach (var f in Directory.GetFiles(path))
 			{
@@ -74,11 +93,11 @@ public partial class Project
 					continue;
 
 				var relPath = Path.GetRelativePath(relativeTo: ContentDirectory, f).Replace('\\', '/');
-				var origin = new InputFile(this, contentRelativePath: relPath);
+				var origin = new InputFile(this, contentRelativePath: '/' + relPath);
 				var item = Path.GetExtension(name) switch
 				{
 					_ when name.StartsWith('_') => null, //layouts, partials, utility files
-					".cshtml" => (ContentItem)await GetRazorPage(origin),
+					".cshtml" => (ContentItem)new DeferredRazorPage(origin),
 					".cs" => (ContentItem)new SiteCode(origin),
 					".md" => (ContentItem)new MarkdownPage(origin),
 					_ => (ContentItem)new AssetFile(origin),
@@ -96,12 +115,20 @@ public partial class Project
 					continue;
 
 				//DO NOT parallelize this without syncing access to shared vars!
-				await ScanDirectory(dir);
+				ScanDirectory(dir);
 			}
 		}
 
 		return ret;
 	}
+
+	private abstract class DummyContent(InputFile origin) : FileContentItem(origin)
+	{
+		protected sealed override Task CoreInitialize() => Task.CompletedTask;
+		protected sealed override Task CorePrepareContent() => Task.CompletedTask;
+		protected sealed override Task CoreWriteContent(Stream outStream, string outputPath) => throw new NotSupportedException();
+	}
+	private sealed class DeferredRazorPage(InputFile origin) : DummyContent(origin) { }
 
 	public async Task<OutputLayout> GenerateOutput()
 	{
@@ -126,7 +153,7 @@ public partial class Project
 
 		foreach (var (path, item) in ret.Items)
 		{
-			var fullPath = Path.Combine(ret.OutputDirectory, path);
+			var fullPath = GetFullOutputPath(path);
 
 			Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
@@ -136,18 +163,18 @@ public partial class Project
 
 		//clean up old files
 
-		CleanDirectory("");
+		CleanDirectory("/");
 
 		bool CleanDirectory(string dir)
 		{
-			var fullPath = Path.Combine(ret.OutputDirectory, dir);
+			var fullPath = GetFullOutputPath(dir);
 
 			var numFiles = 0;
 
 			var filesToRemove = new List<string>();
 			foreach (var f in Directory.EnumerateFiles(fullPath))
 			{
-				var relPath = Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: f);
+				var relPath = '/' + Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: f);
 				numFiles++;
 
 				if (!ret.Items.ContainsKey(relPath))
@@ -156,7 +183,7 @@ public partial class Project
 
 			foreach (var f in filesToRemove)
 			{
-				File.Delete(Path.Combine(ret.OutputDirectory, f));
+				File.Delete(GetFullOutputPath(f));
 				ret.OldFilesDeleted.Add(f);
 			}
 
@@ -165,7 +192,7 @@ public partial class Project
 			var dirsToRemove = new List<string>();
 			foreach (var d in Directory.EnumerateDirectories(fullPath))
 			{
-				var relPath = Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: d);
+				var relPath = '/' + Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: d);
 				numDirectories++;
 
 				if (!CleanDirectory(relPath))
@@ -174,7 +201,7 @@ public partial class Project
 
 			foreach (var d in dirsToRemove)
 			{
-				Directory.Delete(d, recursive: false);
+				Directory.Delete(GetFullOutputPath(d), recursive: false);
 				ret.OldFilesDeleted.Add(d);
 			}
 

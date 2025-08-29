@@ -5,19 +5,32 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-[FrontMatterOf("posts/*.md")]
+[FrontMatterOf("/posts/*.md")]
 public class PostFrontMatter : IFrontMatter
 {
 	public string? Title { get; set; } //IFrontMatter.Title
 	public string? Permalink { get; set; } //IFrontMatter.Permalink
 	public DateTime? Date;
-	public TimeSpan? Time;
+	public TimeSpan? Time; //only used when multiple posts share a date
 	public DateTime[]? Updated;
 	public string Author = "phill";
 	public string? Series;
 	public string? SeriesTitle;
 	public string[]? Tags;
 	public Note[]? Notes;
+
+	public DateTime? LastUpdated
+	{
+		get
+		{
+			var ret = Date;
+			if (Updated != null)
+				foreach (var u in Updated)
+					if (u > ret)
+						ret = u;
+			return ret;
+		}
+	}
 
 	void IFrontMatter.Populate(FileContentItem page)
 	{
@@ -60,6 +73,11 @@ public static class Posts
 {
 	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> GetPosts(this IEnumerable<ContentItem> content)
 	{
-		throw new NotImplementedException();
+		return
+			from it in content.WhereSourcePathMatches("/posts/*.md")
+			let ret = (Page: it as MarkdownPage, FrontMatter: it.FrontMatter as PostFrontMatter)
+			where ret.Page != null && ret.FrontMatter != null
+			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
+			select ret;
 	}
 }

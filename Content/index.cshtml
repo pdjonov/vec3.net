@@ -1,3 +1,15 @@
-@page "Lone Henchman"
+@page ""
 
 @await RenderPartial("_about.md")
+
+<div id="series">
+	
+</div>
+
+<div id="posts-history" class="post-list">
+	<h1>Recent posts</h1>
+	@foreach (var post in Project.Content.GetPosts().Take(8))
+	{
+		@await RenderPartial("/posts/_listitemwithexcerpt.cshtml", post.Page)
+	}
+</div>

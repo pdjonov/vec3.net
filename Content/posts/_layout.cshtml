@@ -1,0 +1,33 @@
+@{
+	var post = (MarkdownPage)Body;
+	var frontMatter = (PostFrontMatter)post.FrontMatter;
+
+	var title = GetTitle();
+}
+
+@if (!string.IsNullOrWhiteSpace(title))
+{
+	<h2 class="post-title">@title</h2>
+
+
+	var published = frontMatter.Date.Value;
+	<div class="post-date">@published.ToString("MMMM dd, yyyy")</div>
+
+	var updated = frontMatter.LastUpdated.Value;
+	if (updated > published)
+	{
+		<div class="post-update-date">(Updated: @updated.ToString("dd MMM yyyy"))</div>
+	}
+
+	<div class="post-tags">
+		@foreach (var tag in frontMatter.Tags ?? Array.Empty<string>())
+		{
+			<a href="#" class="post-tag badge">@tag</a>
+			@* <a href="/posts/tags/@Uri.EscapeDataString(tag)" class="post-tag badge">@tag</a> *@
+		}
+	</div>
+}
+
+@* @Html.Partial("/widgets/_editorsnotes.cshtml") *@
+
+@await RenderBody()

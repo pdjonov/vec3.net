@@ -59,7 +59,7 @@ partial class Project
 
 		foreach (var (matcher, type) in frontMatterTypes)
 		{
-			if (!matcher.Match(origin.ContentRelativePath).HasMatches)
+			if (!matcher.Match(origin.ContentRelativePath.Substring(1)).HasMatches)
 				continue;
 
 			if (ret != null)
@@ -84,6 +84,11 @@ partial class Project
 
 		static Matcher CreateMatcher(IEnumerable<string>? include, IEnumerable<string>? exclude = null)
 		{
+			if (include != null && !include.Any(i => i.StartsWith('/')))
+				throw new ArgumentException(paramName: nameof(include), message: "Patterns must be absolute.");
+			if (exclude != null && !exclude.Any(i => i.StartsWith('/')))
+				throw new ArgumentException(paramName: nameof(exclude), message: "Patterns must be absolute.");
+
 			var ret = new Matcher(StringComparison.Ordinal);
 
 			if (include != null)

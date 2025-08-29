@@ -4,7 +4,13 @@
 	<meta charset="utf-8" />
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>@(GetTitle() ?? "Lone Henchman")</title>
+	@{
+		const string SiteTitle = "Lone Henchman";
+		var title = GetTitle();
+		if (!string.IsNullOrEmpty(title))
+			title += " - ";
+	}
+	<title>@title@SiteTitle</title>
 
 	<link rel="icon" type="image/png" sizes="64x64" href="/assets/img/favicon/favicon-64.png">
 	<link rel="icon" type="image/png" sizes="48x48" href="/assets/img/favicon/favicon-48.png">
@@ -48,7 +54,7 @@
 					<path
 						d="M480-654Zm174 174Zm-348 0Zm174 174Zm0-234L360-660v-220h240v220L480-540Zm180 180L540-480l120-120h220v240H660Zm-580 0v-240h220l120 120-120 120H80ZM360-80v-220l120-120 120 120v220H360Zm120-574 40-40v-106h-80v106l40 40ZM160-440h106l40-40-40-40H160v80Zm280 280h80v-106l-40-40-40 40v106Zm254-280h106v-80H694l-40 40 40 40Z" />
 				</svg>
-				Lone Henchman
+				@SiteTitle
 			</h1>
 			<div class="site-subtitle">Sometimes about tools, sometimes about graphics, sometimes I just ramble.</div>
 		</a>

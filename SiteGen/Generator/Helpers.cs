@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -27,14 +28,26 @@ internal static class Helpers
 		return null;
 	}
 
+	public static void ValidateRootedPath(string path, bool mustBeNormalized = true, [CallerArgumentExpression(nameof(path))] string paramName = "path")
+	{
+		ValidatePathCore(path, mustBeNormalized: mustBeNormalized, mustNotEscapeRoot: true, paramName: paramName);
+		if (!path.StartsWith('/'))
+			throw new ArgumentException(paramName: paramName, message: "The path must be rooted.");
+	}
+
 	public static void ValidateRelativePath(string path, bool mustBeNormalized = true, bool mustNotEscapeRoot = true, [CallerArgumentExpression(nameof(path))] string paramName = "path")
+	{
+		ValidatePathCore(path, mustBeNormalized: mustBeNormalized, mustNotEscapeRoot: mustNotEscapeRoot, paramName: paramName);
+		if (path.StartsWith('/'))
+			throw new ArgumentException(paramName: paramName, message: "Path must not start with a directory separator.");
+	}
+
+	private static void ValidatePathCore(string path, bool mustBeNormalized, bool mustNotEscapeRoot, string paramName)
 	{
 		ArgumentNullException.ThrowIfNull(path, paramName: paramName);
 
 		if (path.Contains('\\'))
 			throw new ArgumentException(paramName: paramName, message: "Path must use forward slashes.");
-		if (path.StartsWith('/'))
-			throw new ArgumentException(paramName: paramName, message: "Path must not start with a directory separator.");
 
 		if (mustNotEscapeRoot && path.Contains(".."))
 		{
@@ -74,9 +87,12 @@ internal static class Helpers
 	public static string CombineContentRelativePaths(string relativeTo, string path, bool resultMustBeRooted = true)
 	{
 		ArgumentNullException.ThrowIfNull(relativeTo);
-		ArgumentNullException.ThrowIfNull(path);
 		if (relativeTo.Contains('\\'))
 			throw new ArgumentException(paramName: nameof(relativeTo), message: "Path must use forward slashes.");
+		if (resultMustBeRooted && !relativeTo.StartsWith('/'))
+			throw new ArgumentException(paramName: nameof(relativeTo), message: "A rooted path can only be ensured if the base path is rooted.");
+
+		ArgumentNullException.ThrowIfNull(path);
 		if (path.Contains('\\'))
 			throw new ArgumentException(paramName: nameof(path), message: "Path must use forward slashes.");
 
@@ -101,11 +117,15 @@ internal static class Helpers
 			}
 
 			combined = string.Join('/', parts);
+
+			if (resultMustBeRooted)
+			{
+				Debug.Assert(!combined.StartsWith('/'));
+				combined = '/' + combined;
+			}
 		}
-		else if (resultMustBeRooted && combined.StartsWith('/'))
-		{
-			combined = combined.Substring(1);
-		}
+
+		Debug.Assert(!resultMustBeRooted || combined.StartsWith('/'));
 
 		return combined;
 	}

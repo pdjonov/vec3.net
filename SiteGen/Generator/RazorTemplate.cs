@@ -16,6 +16,41 @@ public abstract class RazorTemplate : HtmlContentItem
 	protected void Write(object obj) => Writer.Write(obj);
 	protected void WriteLiteral(string literal) => Writer.Write(literal);
 
+	private string? currentAttrSuffix;
+	protected void BeginWriteAttribute(string name,
+		string prefix, int prefixOffset,
+		string suffix, int suffixOffset,
+		int attributeValuesCount)
+	{
+		Debug.Assert(currentAttrSuffix == null);
+		currentAttrSuffix = suffix;
+
+		WriteLiteral(prefix);
+	}
+
+	protected void WriteAttributeValue(string prefix, int prefixOffset,
+		object value,
+		int valueOffset, int valueLength,
+		bool isLiteral)
+	{
+		WriteLiteral(prefix);
+		if (isLiteral && value is string str)
+			WriteLiteral(str);
+		else
+			Write(value);
+	}
+
+	protected void EndWriteAttribute()
+	{
+		Debug.Assert(currentAttrSuffix != null);
+
+		WriteLiteral(currentAttrSuffix);
+		currentAttrSuffix = null;
+	}
+
+	[Obsolete("Did you forget to await an expression?", error: true)]
+	protected void Write(Task value) => throw new NotSupportedException();
+
 	protected virtual Task InitializeTemplate() => Task.CompletedTask;
 	protected abstract Task ExecuteTemplate();
 
@@ -93,15 +128,39 @@ public abstract class RazorTemplate : HtmlContentItem
 	{
 		return Path.GetExtension(path) switch
 		{
-			".md" => RenderMarkdownPartial(path),
+			".md" => RenderMarkdownPartial(),
+			".cshtml" => RenderRazorPartial(),
 			_ => throw new NotSupportedException(),
 		};
 
-		async Task<string> RenderMarkdownPartial(string path)
+		async Task<string> RenderMarkdownPartial()
 		{
 			var source = await LoadText(path);
 			return await Project.RenderMarkdown(source);
 		}
+
+		async Task<string> RenderRazorPartial()
+		{
+			var inFile = TryGetInputFile(path);
+			if (inFile == null)
+				throw new FileNotFoundException(message: "The partial source could not be found.", fileName: path);
+
+			var part = await Project.GetRazorPartial(inFile, model);
+
+			await part.Initialize();
+			await part.PrepareContent();
+
+			return part.Content;
+		}
+	}
+
+	protected string UrlTo(ContentItem page)
+	{
+		ArgumentNullException.ThrowIfNull(page);
+		if (page.OutputPath is null)
+			throw new ArgumentException(paramName: nameof(page), message: "Can't form a link to content which isn't part of the output.");
+
+		return page.OutputPath;
 	}
 }
 
@@ -168,16 +227,19 @@ public abstract class RazorLayout : RazorTemplate
 		};
 	}
 
-	[Obsolete("Did you forget to await a RenderBody or RenderSection expression?", error: true)]
-	protected void Write(Task<string> value) => throw new NotSupportedException();
-	
 	protected override Task CoreWriteContent(Stream outStream, string outputPath)
 		=> throw new NotSupportedException();
 }
 
 public abstract class RazorPartial : RazorTemplate
 {
-	protected RazorPartial(InputFile origin) : base(origin) { }
+	protected RazorPartial(InputFile origin, object? model)
+		: base(origin)
+	{
+		Model = model;
+	}
+
+	public object? Model { get; }
 
 	protected override Task CoreWriteContent(Stream outStream, string outputPath)
 		=> throw new NotSupportedException();

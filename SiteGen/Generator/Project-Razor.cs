@@ -24,7 +24,7 @@ partial class Project
 	private readonly Lock razorEngineLock = new();
 	private readonly RazorProjectEngine razorEngine;
 
-	private static string RazorContentNamespace = typeof(Project).Namespace + ".GeneratedContent";
+	private static string RazorContentNamespace = "GeneratedSiteContent";
 
 	private static RazorProjectEngine CreateRazorEngine(Project project)
 	{
@@ -39,24 +39,31 @@ partial class Project
 				b.Features.Add(new FixupRazorClass(project));
 				b.Features.Add(new FullyQualifyBaseType());
 
-				RazorPageDirective.Register(b);
+				Directives.Register(b);
 				SectionDirective.Register(b);
 			});
 	}
 
-	private class RazorPageDirective : IntermediateNodePassBase, IRazorDirectiveClassifierPass
+	private class Directives : IntermediateNodePassBase, IRazorDirectiveClassifierPass
 	{
 		public static void Register(RazorProjectEngineBuilder builder)
 		{
-			builder.AddDirective(Directive);
-			builder.Features.Add(new RazorPageDirective());
+			builder.AddDirective(PageDirective);
+			builder.AddDirective(ModelDirective);
+			builder.Features.Add(new Directives());
 		}
 
-		public static readonly DirectiveDescriptor Directive = DirectiveDescriptor.CreateSingleLineDirective(
+		public static readonly DirectiveDescriptor PageDirective = DirectiveDescriptor.CreateSingleLineDirective(
 			"page",
 			builder =>
 			{
 				builder.AddOptionalStringToken("title", "The page's title.");
+			});
+		public static readonly DirectiveDescriptor ModelDirective = DirectiveDescriptor.CreateSingleLineDirective(
+			"model",
+			builder =>
+			{
+				builder.AddTypeToken("type", "The model type.");
 			});
 
 		protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
@@ -65,25 +72,24 @@ partial class Project
 			if (classNode == null)
 				return;
 
-			var pageDirective = documentNode.FindDirectiveReferences(Directive).SingleOrDefault();
-			if (pageDirective.Node is not DirectiveIntermediateNode directiveNode)
-				return;
-
-			classNode.Interfaces.Add(GlobalPrefix + typeof(IPage).FullName);
-			classNode.Children.Add(new PropertyDeclarationIntermediateNode()
+			var pageDirective = documentNode.FindDirectiveReferences(PageDirective).SingleOrDefault();
+			if (pageDirective.Node is DirectiveIntermediateNode pageNode)
 			{
-				Modifiers = { "public" },
-				PropertyType = "string",
-				PropertyName = nameof(IPage.Title),
-			});
-
-			if (directiveNode.Tokens.FirstOrDefault() is DirectiveTokenIntermediateNode titleToken)
-			{
-				var initMethod = GetInitializeMethod(classNode);
-
-				initMethod.Children.Add(new CSharpCodeIntermediateNode()
+				classNode.Interfaces.Add(GlobalPrefix + typeof(IPage).FullName);
+				classNode.Children.Add(new PropertyDeclarationIntermediateNode()
 				{
-					Children =
+					Modifiers = { "public" },
+					PropertyType = "string",
+					PropertyName = nameof(IPage.Title),
+				});
+
+				if (pageNode.Tokens.FirstOrDefault() is DirectiveTokenIntermediateNode titleToken)
+				{
+					var initMethod = GetInitializeMethod(classNode);
+
+					initMethod.Children.Add(new CSharpCodeIntermediateNode()
+					{
+						Children =
 					{
 						new IntermediateToken()
 						{
@@ -101,7 +107,26 @@ partial class Project
 							Content = ";",
 						},
 					},
-					Source = titleToken.Source,
+						Source = titleToken.Source,
+					});
+				}
+			}
+
+			var modelDirective = documentNode.FindDirectiveReferences(ModelDirective).SingleOrDefault();
+			if (modelDirective.Node is DirectiveIntermediateNode modelNode)
+			{
+				var typeName = modelNode.Tokens.Single().Content;
+
+				classNode.Children.Add(new CSharpCodeIntermediateNode()
+				{
+					Children =
+					{
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = $"public new {typeName} Model => ({typeName})base.Model;",
+						}
+					}
 				});
 			}
 		}
@@ -221,6 +246,9 @@ partial class Project
 
 	private readonly AssemblyLoadContext assemblyLoadContext = new("Site Content", isCollectible: true);
 	private Assembly? siteCodeAssembly;
+	private DateTime siteCodeAssemblyTimestamp;
+
+	private sealed class SiteCode(InputFile origin) : DummyContent(origin) { }
 
 	private async Task CompileSiteCode(IEnumerable<SiteCode> code)
 	{
@@ -229,9 +257,15 @@ partial class Project
 		var siteAssemblyPath = Path.Combine(CacheDirectory, "site.dll");
 		var siteDllTime = File.Exists(siteAssemblyPath) ?
 			File.GetLastWriteTime(siteAssemblyPath) :
-			default;
+			DateTime.MinValue;
+
+		var selfRefTime = File.GetLastWriteTime(typeof(Project).Assembly.Location);
 
 		var siteSourceTime = siteDllTime;
+
+		if (selfRefTime > siteSourceTime)
+			siteSourceTime = selfRefTime;
+
 		foreach (var c in code)
 		{
 			var time = File.GetLastWriteTime(c.FullPath);
@@ -258,16 +292,24 @@ partial class Project
 			}
 
 			EmitAssembly(compilation, siteAssemblyPath);
+
+			siteDllTime = File.GetLastWriteTime(siteAssemblyPath);
 		}
-		else if (siteSourceTime == default)
+		else if (siteSourceTime == DateTime.MinValue)
 		{
 			//there's no source, there should be no assembly
 			Helpers.DeleteNoThrowIoException(siteAssemblyPath);
+
+			//still update the timestamp to force Razor templates to rebuild
+			siteCodeAssemblyTimestamp = selfRefTime;
+
 			return;
 		}
 
 		metadataReferences.Add(MetadataReference.CreateFromFile(siteAssemblyPath));
 		siteCodeAssembly = assemblyLoadContext.LoadFromAssemblyPath(siteAssemblyPath);
+
+		siteCodeAssemblyTimestamp = siteDllTime;
 
 		FindFrontMatterTypes();
 	}
@@ -364,15 +406,18 @@ partial class Project
 	private Task<RazorPage> GetRazorPage(InputFile origin)
 		=> GetRazorTemplate<RazorPage>(origin);
 
-	private async Task<T> GetRazorTemplate<T>(InputFile origin)
+	public Task<RazorPartial> GetRazorPartial(InputFile origin, object? model = null)
+		=> GetRazorTemplate<RazorPartial>(origin, model);
+
+	private async Task<T> GetRazorTemplate<T>(InputFile origin, params object?[] additionalArgs)
 		where T : RazorTemplate
 	{
 		var info = GetRazorPageInfo(origin.ContentRelativePath);
-		await info.InitializationTask;
+		await info.WaitForInitialization();
 
 		Debug.Assert(info.PageType.IsAssignableTo(typeof(T)));
 
-		return (T)info.Create(origin);
+		return (T)info.Create([origin, ..additionalArgs]);
 	}
 
 	private const string LayoutTemplateName = "_layout.cshtml";
@@ -382,12 +427,12 @@ partial class Project
 		ArgumentNullException.ThrowIfNull(content);
 
 		var body = content;
-		for (string dir, path = content.ContentRelativePath; !string.IsNullOrEmpty(path); path = dir)
+		for (string dir, path = content.ContentRelativePath; path != "/"; path = dir)
 		{
 			dir = Path.GetDirectoryName(path)!;
 			var layoutFile = Path.Combine(dir, LayoutTemplateName);
 
-			if (!File.Exists(layoutFile))
+			if (!File.Exists(GetFullContentPath(layoutFile)))
 				continue;
 
 			var layout = await GetRazorTemplate<RazorLayout>(new InputFile(this, layoutFile));
@@ -405,10 +450,13 @@ partial class Project
 
 	private RazorTemplateInfo GetRazorPageInfo(string path)
 	{
+		Helpers.ValidateRootedPath(path);
+
 		lock (razorTemplateInfosLock)
 		{
-			if (!razorTemplateInfos.TryGetValue(path, out var info))
-				razorTemplateInfos.Add(path, info = new(this, path));
+			var key = path.Substring(1);
+			if (!razorTemplateInfos.TryGetValue(key, out var info))
+				razorTemplateInfos.Add(key, info = new(this, path));
 
 			return info;
 		}
@@ -419,16 +467,20 @@ partial class Project
 
 	private class RazorTemplateInfo
 	{
-		public RazorTemplateInfo(Project engine, string path)
+		public RazorTemplateInfo(Project project, string path)
 		{
-			if (!File.Exists(path))
-				throw new FileNotFoundException("The requested page was not found.", fileName: path);
-
+			Project = project;
 			SourcePath = path;
-			InitializationTask = Task.Run(() => Initialize(engine));
+		}
+		
+		private Task? initializationTask;
+		public Task WaitForInitialization()
+		{
+			lock (Project.razorTemplateInfosLock)
+				return initializationTask ??= Task.Run(Initialize);
 		}
 
-		private void Initialize(Project engine)
+		private void Initialize()
 		{
 			//process the Razor page
 
@@ -444,24 +496,28 @@ partial class Project
 			string baseCachePath;
 			string assemblyName;
 			string assemblyFile;
-			lock (engine.razorEngineLock) //RazorProjectEngine is *probably* thread-safe, but I can't find the docs to prove it
+			lock (Project.razorEngineLock) //RazorProjectEngine is *probably* thread-safe, but I can't find the docs to prove it
 			{
-				var file = engine.razorEngine.FileSystem.GetItem(SourcePath);
-				var code = engine.razorEngine.Process(file);
+				var file = Project.razorEngine.FileSystem.GetItem(SourcePath);
+				var code = Project.razorEngine.Process(file);
 
 				baseCachePath = file.RelativePhysicalPath;
 				//fix up the cache path
 				baseCachePath = Path.ChangeExtension(baseCachePath, null);
-				baseCachePath = Path.Combine(engine.RazorCacheDirectory, baseCachePath);
+				baseCachePath = Path.Combine(Project.RazorCacheDirectory, baseCachePath);
 
 				assemblyFile = baseCachePath + ".dll";
 
 				try
 				{
-					if (File.GetLastWriteTime(file.PhysicalPath) <= File.GetLastWriteTime(assemblyFile))
+					var cachedTime = File.Exists(assemblyFile) ?
+						File.GetLastWriteTime(assemblyFile) :
+						DateTime.MinValue;
+					if (Project.siteCodeAssemblyTimestamp <= cachedTime &&
+						File.GetLastWriteTime(file.PhysicalPath) <= cachedTime)
 						goto assemblyIsUpToDate;
 				}
-				catch(IOException)
+				catch (IOException)
 				{
 				}
 
@@ -504,8 +560,15 @@ partial class Project
 
 			var compilation = CSharpCompilation.Create(
 				assemblyName: assemblyName,
-				syntaxTrees: [CSharpSyntaxTree.ParseText(source, path: csSourcePath, encoding: Encoding.UTF8)],
-				references: engine.metadataReferences,
+				syntaxTrees: [
+					CSharpSyntaxTree.ParseText(source, path: csSourcePath, encoding: Encoding.UTF8),
+					CreateGlobalUsingsSource(
+						"System",
+						"System.Collections.Generic",
+						"System.Linq",
+						typeof(Project).Namespace!),
+					],
+				references: Project.metadataReferences,
 				options: new(OutputKind.DynamicallyLinkedLibrary));
 
 			if (!CheckDiagnostics(compilation.GetDiagnostics()))
@@ -516,34 +579,35 @@ partial class Project
 
 			EmitAssembly(compilation, assemblyFile);
 
-			//load the page assembly
+		//load the page assembly
 
 		assemblyIsUpToDate:
-			assembly = engine.assemblyLoadContext.LoadFromAssemblyPath(assemblyFile);
+			assembly = Project.assemblyLoadContext.LoadFromAssemblyPath(assemblyFile);
 
 			pageType = assembly.GetType($"{Namespace}.{TypeName}");
 		}
 
+		public Project Project { get; }
 		public string SourcePath { get; }
 
 		public string Namespace { get; private set; } = RazorContentNamespace;
 		public string TypeName { get; private set; } = "Page";
 		public Type BaseType { get; private set; } = typeof(RazorPage);
 
-		public Task InitializationTask { get; }
-
 		private Assembly? assembly;
 
 		private Type? pageType;
 		public Type PageType => pageType ?? throw new InvalidOperationException();
 
-		public object Create(params object[] args)
+		public object Create(params object?[] args)
 		{
-			if (!InitializationTask.IsCompleted)
+			var initializationTask = WaitForInitialization();
+
+			if (!initializationTask.IsCompleted)
 				throw new InvalidOperationException();
 
-			if (InitializationTask.IsFaulted || InitializationTask.IsCanceled)
-				InitializationTask.GetAwaiter().GetResult(); //rethrows for us
+			if (initializationTask.IsFaulted || initializationTask.IsCanceled)
+				initializationTask.GetAwaiter().GetResult(); //rethrows for us
 
 			return Activator.CreateInstance(pageType!, args: args)!;
 		}
