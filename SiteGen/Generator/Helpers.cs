@@ -15,6 +15,32 @@ namespace Vec3.Site.Generator;
 
 internal static class Helpers
 {
+	public static string TrimSuffix(this string str, string suffix)
+	{
+		if (str.EndsWith(suffix))
+			str = str.Substring(0, str.Length - suffix.Length);
+		return str;
+	}
+
+	public static string FullNameWithoutGenericTag(this Type type)
+	{
+		var ret = type.FullName!;
+
+		var idx = ret.LastIndexOf('`');
+		if (idx != -1)
+		{
+			var doTrim = idx + 1 < ret.Length;
+			for (var i = idx + 1; i < ret.Length && doTrim; i++)
+				if (!char.IsDigit(ret[i]))
+					doTrim = false;
+
+			if (doTrim)
+				ret = ret.Substring(0, idx);
+		}
+
+		return ret;
+	}
+
 	public static Exception? GetException(this Task task)
 	{
 		if (task.IsFaulted)

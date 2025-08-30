@@ -173,10 +173,25 @@ public abstract class RazorPage : RazorTemplate
 	protected override Task CoreInitialize()
 	{
 		var fileName = Path.GetFileNameWithoutExtension(Origin.ContentRelativePath);
-		OutputPath = Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : "");
+		OutputPath = Path.ChangeExtension(Origin.ContentRelativePath, fileName == "index" ? ".html" : null);
 
 		return InitializeTemplate();
 	}
+}
+
+public abstract class EnumeratedRazorPage : RazorPage
+{
+	protected EnumeratedRazorPage(InputFile origin) : base(origin) { }
+
+	protected override Task CoreInitialize()
+	{
+		OutputPath = null;
+
+		return InitializeTemplate();
+	}
+
+	public abstract Task<IEnumerable<object?>> Enumerate();
+	protected object? Item { get; }
 }
 
 public abstract class RazorLayout : RazorTemplate

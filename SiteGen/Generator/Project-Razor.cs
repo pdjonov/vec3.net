@@ -41,31 +41,59 @@ partial class Project
 				b.Features.Add(new FixupRazorClass(project));
 				b.Features.Add(new FullyQualifyBaseType());
 
-				Directives.Register(b);
+				Directives.Register(b, project);
 				SectionDirective.Register(b);
 			});
 	}
 
 	private class Directives : IntermediateNodePassBase, IRazorDirectiveClassifierPass
 	{
-		public static void Register(RazorProjectEngineBuilder builder)
+		private Directives(Project project)
+		{
+			this.project = project;
+		}
+
+		private readonly Project project;
+
+		public static void Register(RazorProjectEngineBuilder builder, Project project)
 		{
 			builder.AddDirective(PageDirective);
 			builder.AddDirective(ModelDirective);
-			builder.Features.Add(new Directives());
+			builder.AddDirective(InitializeDirective);
+			builder.AddDirective(EnumerateDirective);
+			builder.Features.Add(new Directives(project));
 		}
 
 		public static readonly DirectiveDescriptor PageDirective = DirectiveDescriptor.CreateSingleLineDirective(
 			"page",
 			builder =>
 			{
+				builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
 				builder.AddOptionalStringToken("title", "The page's title.");
 			});
+
 		public static readonly DirectiveDescriptor ModelDirective = DirectiveDescriptor.CreateSingleLineDirective(
 			"model",
 			builder =>
 			{
+				builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
 				builder.AddTypeToken("type", "The model type.");
+			});
+
+		public static readonly DirectiveDescriptor InitializeDirective = DirectiveDescriptor.CreateCodeBlockDirective(
+			"initialize",
+			builder =>
+			{
+				builder.Usage = DirectiveUsage.FileScopedMultipleOccurring;
+			});
+
+		public static readonly DirectiveDescriptor EnumerateDirective = DirectiveDescriptor.CreateCodeBlockDirective(
+			"enumerate",
+			builder =>
+			{
+				builder.Usage = DirectiveUsage.FileScopedSinglyOccurring;
+				builder.AddTypeToken("type", "The model type for each Instance.");
+				builder.AddOptionalMemberToken("name", "The name of the instance model field.");
 			});
 
 		protected override void ExecuteCore(RazorCodeDocument codeDocument, DocumentIntermediateNode documentNode)
@@ -131,6 +159,69 @@ partial class Project
 					}
 				});
 			}
+
+			foreach (var initializeDirective in documentNode.FindDirectiveReferences(InitializeDirective))
+			{
+				var initMethod = GetInitializeMethod(classNode);
+
+				initMethod.Children.AddRange(initializeDirective.Node.Children);
+			}
+
+			var enumerateDirective = documentNode.FindDirectiveReferences(EnumerateDirective).SingleOrDefault();
+			if (enumerateDirective.Node is DirectiveIntermediateNode enumerateNode)
+			{
+				RazorTemplateInfo info;
+				lock (project.razorTemplateInfosLock)
+					info = project.razorTemplateInfos[codeDocument.Source.RelativePath];
+
+				classNode.BaseType = typeof(EnumeratedRazorPage).FullName;
+
+				var tokens = enumerateNode.Tokens.ToArray();
+				var typeName = tokens[0].Content;
+				var name = tokens.Length >= 2 ? tokens[1].Content : "Item";
+
+				classNode.Children.Add(new CSharpCodeIntermediateNode()
+				{
+					Children =
+					{
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = $"public {(name == "Item" ? "new" : "")} {typeName} {name} => ({typeName})base.Item;",
+						}
+					}
+				});
+
+				var innerEnumerateMethod = new MethodDeclarationIntermediateNode()
+				{
+					Modifiers = { "async" },
+					ReturnType = $"{GlobalPrefix}{typeof(Task<>).FullNameWithoutGenericTag()}<{GlobalPrefix}{typeof(IEnumerable<>).FullNameWithoutGenericTag()}<{typeName}>>",
+					MethodName = "EnumerateImpl",
+				};
+				innerEnumerateMethod.Children.AddRange(enumerateNode.Children.SkipWhile(c => c is DirectiveTokenIntermediateNode));
+
+				classNode.Children.Add(new MethodDeclarationIntermediateNode()
+				{
+					Modifiers = { "public", "override", "async" },
+					ReturnType = $"{GlobalPrefix}{typeof(Task<>).FullNameWithoutGenericTag()}<{GlobalPrefix}{typeof(IEnumerable<>).FullNameWithoutGenericTag()}<object>>",
+					MethodName = "Enumerate",
+					Children =
+					{
+						innerEnumerateMethod,
+						new CSharpCodeIntermediateNode()
+						{
+							Children =
+							{
+								new IntermediateToken()
+								{
+									Kind = TokenKind.CSharp,
+									Content = $"return await {innerEnumerateMethod.MethodName}();",
+								}
+							}
+						},
+					},
+				});
+			}
 		}
 	}
 
@@ -151,7 +242,7 @@ partial class Project
 
 			var classNode = documentNode.FindPrimaryClass();
 			classNode.ClassName = info.TypeName;
-			classNode.BaseType = info.BaseType.FullName;
+			classNode.BaseType ??= info.BaseType.FullName;
 
 			var methodNode = documentNode.FindPrimaryMethod();
 			methodNode.MethodName = "ExecuteTemplate";
@@ -398,6 +489,7 @@ partial class Project
 	private static readonly Type[] supportedPageTypes =
 		[
 			typeof(RazorPage),
+			typeof(EnumeratedRazorPage),
 			typeof(RazorLayout),
 			typeof(RazorPartial),
 		];
