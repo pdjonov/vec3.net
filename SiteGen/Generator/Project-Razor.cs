@@ -275,6 +275,8 @@ partial class Project
 
 		if (siteSourceTime > siteDllTime)
 		{
+			Console.WriteLine($"Compiling '{Path.GetRelativePath(CacheDirectory, siteAssemblyPath)}'");
+
 			var compilation = CSharpCompilation.Create(
 				assemblyName: "site",
 				syntaxTrees: code.Select(c => ParseCSharpSource(c.FullPath)).

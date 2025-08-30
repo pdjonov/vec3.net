@@ -21,12 +21,10 @@
 
 	@* mathjax *@
 	<script>
-		MathJax = {
-			tex: {
-				inlineMath: { '[+]': [['$', '$']] },
-				processEscapes: true
-			}
-		};
+	MathJax = { tex: {
+		inlineMath: { '[+]': [['$', '$']] },
+		processEscapes: true
+	}};
 	</script>
 	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.js"></script>
 
@@ -45,7 +43,7 @@
 	@await RenderSection("head", required: false)
 </head>
 
-<body class="main">
+<body>
 	<div class="top-row">
 		<a class="title" href="/">
 			<h1 class="site-title">

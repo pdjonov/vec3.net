@@ -4,9 +4,7 @@
     background-color: #1e1e1e;
     color: #B6B6B6;
     margin: 0;
-}
 
-.main {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -14,7 +12,7 @@
 
 /* Header nonsense */
 
-.main .top-row {
+.top-row {
     background-image: url("/assets/img/header.jpg");
     background-size: cover;
     background-position: bottom;
@@ -29,7 +27,7 @@
     grid-template-rows: 1fr max-content;
     align-content: center;
 }
-.main .top-row .title {
+.top-row .title {
     grid-row: 1;
     grid-column: 2;
     display: flex;
@@ -39,25 +37,25 @@
     color: #d0d0d0;
     text-decoration: none;
 }
-.main .top-row .site-title {
+.top-row .site-title {
     font-family: Georgia, Verdana, arial, sans-serif;
     font-weight: bold;
     font-size: clamp(8pt, 8vw, 64pt);
     margin: 0px;
 }
-.main .top-row .site-subtitle {
+.top-row .site-subtitle {
     font-family: Georgia, Verdana, arial, sans-serif;
     font-size: clamp(6pt, 2.25vw, 18pt);
     line-height: 0;
     margin: 0px;
     color: #B0B0B0;
 }
-.main .top-row .links-bg {
+.top-row .links-bg {
     grid-row: 2;
     grid-column: 1/4;
     background: linear-gradient(transparent, #0004 2px)
 }
-.main .top-row .links {
+.top-row .links {
     grid-row: 2;
     grid-column: 2;
     padding: 0;
@@ -65,13 +63,13 @@
     font-size: clamp(24pt, 2vw, 32pt);
 }
 
-.main .top-row .links a {
+.top-row .links a {
     color: #808080;
     font-weight: bold;
     padding: 0 16px;
     text-decoration: none;
 }
-.main .top-row .links a:hover {
+.top-row .links a:hover {
     color: #B8B6B6;
     background: linear-gradient(transparent 16px, #0006);
     border-radius: 0 0 4px 4px;
@@ -79,7 +77,7 @@
 
 /* Body */
 
-.main .content {
+.content {
     width: min(100%, 1200px);
     padding: 0 clamp(8px, 2vw, 16px);
     box-sizing: border-box;
@@ -177,16 +175,16 @@ div.alert > p:has(+.date) {
     text-wrap: nowrap;
 }
 
-.main code {
+code {
     font-family: Consolas, 'Courier New', monospace;
     color: #dcdcdc;
 }
-.main code:not(pre*) {
+code:not(pre*) {
     background: #0f0f0f;
     border-radius: 4px;
 }
 
-.main pre:has(code), div.math, blockquote {
+pre:has(code), div.math, blockquote {
     display: block;
     overflow-x: auto;
     overflow-y: hidden;
