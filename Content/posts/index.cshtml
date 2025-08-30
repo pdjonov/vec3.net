@@ -35,17 +35,9 @@
 	</div>
 	<div id="posts-tags">
 		<h1>Tags</h1>
-		@* @foreach (var tag in
-			from o in Outputs
-			let tag = o.GetString("Title")
-			where
-				!string.IsNullOrWhiteSpace(tag) &&
-				!o.Source.IsNullOrEmpty &&
-				o.Source.GetRelativeInputPath() == "posts/tags.cshtml"
-			orderby tag
-			select o)
+		@foreach (var (tag, posts) in Project.Content.GetPosts().ByTag())
 		{
-			<a href="@tag.GetLink()">@tag.GetString("Title") (@tag.GetChildren().Count())</a>
-		} *@
+			<a href="fixme">@tag (@posts.Count())</a>
+		}
 	</div>
 </div>

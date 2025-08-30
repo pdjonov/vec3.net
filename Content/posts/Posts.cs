@@ -79,4 +79,13 @@ public static class Posts
 			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
 			select ret;
 	}
+
+	public static IEnumerable<IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)>> ByTag(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts)
+	{
+		return
+			from p in posts
+			from t in p.FrontMatter.Tags ?? []
+			orderby t
+			group p by t;
+	}
 }

@@ -212,3 +212,12 @@ internal static class Helpers
 			mustBeAbsolute: mustBeAbsolute);
 	}
 }
+
+public static class PageHelpers
+{
+	public static void Deconstruct<K, T>(this IGrouping<K, T> group, out K key, out IEnumerable<T> values)
+	{
+		key = group.Key;
+		values = group;
+	}
+}
