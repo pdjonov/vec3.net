@@ -142,7 +142,9 @@ public abstract class RazorTemplate : HtmlContentItem
 		async Task<string> RenderMarkdownPartial()
 		{
 			var source = await LoadText(path);
-			return await Project.RenderMarkdown(source);
+			var ret = await Project.RenderMarkdown(source);
+			Debug.Assert(ret != null);
+			return ret;
 		}
 
 		async Task<string> RenderRazorPartial()
