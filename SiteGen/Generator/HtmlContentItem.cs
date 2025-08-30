@@ -97,14 +97,14 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 	}
 
 	private string? blurb;
-	public string Blurb
+	public async Task<string> GetBlurb()
 	{
-		get
-		{
-			ThrowIfNotPrepared();
-			Debug.Assert(blurb != null);
-			return blurb;
-		}
+		ThrowIfNotInitialized();
+
+		await PrepareContent();
+		Debug.Assert(blurb != null);
+
+		return blurb;
 	}
 
 	protected virtual bool ShouldApplyLayout => OutputPath != null;

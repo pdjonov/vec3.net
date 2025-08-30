@@ -12,6 +12,6 @@
 	{
 		<div class="post-update-date">Updated: @lastUpdated.ToString("dd MMM yyyy")</div>
 	}
-	@RenderRaw(Model.Blurb)
+	@RenderRaw(await Model.GetBlurb())
 	<a href="@UrlTo(Model)" class="read-more">Read more...</a>
 </div>

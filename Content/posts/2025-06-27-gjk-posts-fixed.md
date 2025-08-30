@@ -1,5 +1,5 @@
 ---
-title: 'GJK'
+title: 'GJK (fixed)'
 tags:
   - code
   - math
@@ -28,5 +28,5 @@ Anyways, they're fixed now. I think. (I hope.) There might be some errors that c
 
 I'll probably be messig with the pages and tweaking them as I find issues, but perfect or not, here they are:
 
-* [GJK](/gjk)
-* [Implementing GJK](/gjk/implementation)
+* [GJK](/posts/gjk)
+* [Implementing GJK](/posts/implementing-gjk)

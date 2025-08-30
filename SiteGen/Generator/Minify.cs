@@ -2,8 +2,10 @@ using System;
 using System.Threading.Tasks;
 
 using AngleSharp;
+using AngleSharp.Dom;
 using AngleSharp.Html;
 using AngleSharp.Html.Parser;
+
 using NUglify;
 using NUglify.Css;
 
@@ -14,6 +16,13 @@ public static class Minify
 	public static Task<string> JavaScript(string content)
 	{
 		ArgumentNullException.ThrowIfNull(content);
+
+		//Uglify.Js is broken and maintenance is at the "you fix it, make a PR" stage of development
+		//therefore, minifying JS content is opt-*in* since otherwise stuff just breaks
+		//ToDo: figure out how to shell out to one of the actually-maintained minifiers
+
+		if (!content.StartsWith("//!!minify"))
+			return Task.FromResult(content);
 
 		var res = Uglify.Js(content);
 		if (res.HasErrors)
@@ -55,6 +64,6 @@ public static class Minify
 				n.SetAttribute("style", await Minify.Css(style, CssType.DeclarationList));
 		}
 
-		return dom.ToHtml(new MinifyMarkupFormatter());
+		return dom.ToHtml(new MinifyMarkupFormatter() { PreservedTags = [TagNames.Pre, TagNames.Code, TagNames.Textarea] });
 	}
 }

@@ -20,7 +20,7 @@
 	<meta name="theme-color" content="#1e1e1e">
 
 	@* mathjax *@
-	<script>
+	<script>//!!minify
 	MathJax = { tex: {
 		inlineMath: { '[+]': [['$', '$']] },
 		processEscapes: true
@@ -67,7 +67,7 @@
 		@await RenderBody()
 	</div>
 
-	<script>
+	<script>//!!minify
 		hljs.registerLanguage('hlsl', hljsDefineHlsl);
 		hljs.initHighlightingOnLoad();
 	</script>

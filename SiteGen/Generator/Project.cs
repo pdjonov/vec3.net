@@ -82,6 +82,7 @@ public partial class Project
 					".cshtml" => (ContentItem)new DeferredRazorPage(origin),
 					".cs" => (ContentItem)new SiteCode(origin),
 					".md" => (ContentItem)new MarkdownPage(origin),
+					".alias" => (ContentItem)new AliasContent(origin),
 					_ => (ContentItem)new AssetFile(origin),
 				};
 
