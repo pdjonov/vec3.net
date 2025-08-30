@@ -10,10 +10,10 @@
 	<h2 class="post-title">@title</h2>
 
 
-	var published = frontMatter.Date.Value;
+	var published = frontMatter.Date;
 	<div class="post-date">@published.ToString("MMMM dd, yyyy")</div>
 
-	var updated = frontMatter.LastUpdated.Value;
+	var updated = frontMatter.LastUpdated;
 	if (updated > published)
 	{
 		<div class="post-update-date">(Updated: @updated.ToString("dd MMM yyyy"))</div>

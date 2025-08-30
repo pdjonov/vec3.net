@@ -59,9 +59,9 @@ public partial class Project
 
 	protected virtual async Task LoadCore()
 	{
-		var inputItems = await Task.Run(ScanInputDirectory);
+		var inputItems = ScanInputDirectory();
 
-		await CompileSiteCode(inputItems.OfType<SiteCode>());
+		CompileSiteCode(inputItems.OfType<SiteCode>());
 		inputItems.RemoveAll(it => it is SiteCode);
 
 		for (var i = 0; i < inputItems.Count; i++)
@@ -77,7 +77,7 @@ public partial class Project
 		//ToDo: generated content
 	}
 
-	private async Task<List<ContentItem>> ScanInputDirectory()
+	private List<ContentItem> ScanInputDirectory()
 	{
 		var ret = new List<ContentItem>();
 

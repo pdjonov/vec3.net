@@ -1,0 +1,51 @@
+<div id="posts-root">
+	<div id="posts-history" class="post-list">
+		@{
+			int year = int.MinValue, month = int.MinValue, count = 0;
+			var includeExcerpts = true;
+		}
+		@foreach (var (page, frontMatter) in Project.Content.GetPosts())
+		{
+			count++;
+
+			var date = frontMatter.Date;
+
+			if (date.Year != year)
+			{
+				year = date.Year;
+				month = int.MinValue;
+				<h2 class="date-year">@(date.ToString("yyyy"))</h2>
+			}
+
+			if (date.Month != month)
+			{
+				month = date.Month;
+				<h3 class="date-month">@(date.ToString("MMMM"))</h3>
+
+				if (count > 5)
+					includeExcerpts = false;
+			}
+
+			@await RenderPartial(
+				includeExcerpts ?
+					"_listitemwithexcerpt.cshtml" :
+					"_listitemwithexcerpt.cshtml",
+				page)
+		}
+	</div>
+	<div id="posts-tags">
+		<h1>Tags</h1>
+		@* @foreach (var tag in
+			from o in Outputs
+			let tag = o.GetString("Title")
+			where
+				!string.IsNullOrWhiteSpace(tag) &&
+				!o.Source.IsNullOrEmpty &&
+				o.Source.GetRelativeInputPath() == "posts/tags.cshtml"
+			orderby tag
+			select o)
+		{
+			<a href="@tag.GetLink()">@tag.GetString("Title") (@tag.GetChildren().Count())</a>
+		} *@
+	</div>
+</div>

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,6 +17,7 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Vec3.Site.Generator;
 
@@ -155,14 +157,11 @@ partial class Project
 			methodNode.MethodName = "ExecuteTemplate";
 			methodNode.Modifiers[0] = "protected";
 
-			var baseCtor = info.BaseType.
+			foreach (var ctor in info.BaseType.
 				GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic).
-				Where(c => c.IsPublic | c.IsFamily).
-				OrderBy(c => c.GetParameters().Length).
-				FirstOrDefault();
-			if (baseCtor != null && baseCtor.GetParameters().Length != 0)
+				Where(c => c.IsPublic | c.IsFamily))
 			{
-				var parms = baseCtor.GetParameters();
+				var parms = ctor.GetParameters();
 				classNode.Children.Insert(0, new CSharpCodeIntermediateNode()
 				{
 					Children =
@@ -250,7 +249,7 @@ partial class Project
 
 	private sealed class SiteCode(InputFile origin) : DummyContent(origin) { }
 
-	private async Task CompileSiteCode(IEnumerable<SiteCode> code)
+	private void CompileSiteCode(IEnumerable<SiteCode> code)
 	{
 		code = code.ToArray();
 
@@ -414,30 +413,32 @@ partial class Project
 	private async Task<T> GetRazorTemplate<T>(InputFile origin, params object?[] additionalArgs)
 		where T : RazorTemplate
 	{
-		var info = GetRazorPageInfo(origin.ContentRelativePath);
+		var info = GetRazorPageInfo(origin);
 		await info.WaitForInitialization();
 
 		Debug.Assert(info.PageType.IsAssignableTo(typeof(T)));
 
-		return (T)info.Create([origin, ..additionalArgs]);
+		return (T)info.Create(additionalArgs);
 	}
-
-	private const string LayoutTemplateName = "_layout.cshtml";
 
 	public async Task<string> ApplyLayout(HtmlContentItem content)
 	{
 		ArgumentNullException.ThrowIfNull(content);
 
+		var fullContentPath = content.FullPath;
+
 		var body = content;
 		for (string dir, path = content.ContentRelativePath; path != "/"; path = dir)
 		{
 			dir = Path.GetDirectoryName(path)!;
-			var layoutFile = Path.Combine(dir, LayoutTemplateName);
 
-			if (!File.Exists(GetFullContentPath(layoutFile)))
+			var fullDirPath = GetFullContentPath(dir);
+
+			var layout = await GetLayout(
+				fullDirectoryPath: fullDirPath,
+				relPath: Path.GetRelativePath(relativeTo: fullDirPath, fullContentPath));
+			if (layout == null)
 				continue;
-
-			var layout = await GetRazorTemplate<RazorLayout>(new InputFile(this, layoutFile));
 
 			layout.Body = body;
 
@@ -450,15 +451,98 @@ partial class Project
 		return body.Content;
 	}
 
-	private RazorTemplateInfo GetRazorPageInfo(string path)
+	[GeneratedRegex("^_layout(?:{(?<pattern>.+)})?.cshtml$", RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+	private static partial Regex LayoutTemplateNameMatcher();
+
+	private struct DirectoryLayoutTemplates
 	{
-		Helpers.ValidateRootedPath(path);
+		private (Matcher FilenameMatcher, RazorTemplateInfo Template)[] filteredTemplates;
+		private RazorTemplateInfo? defaultTemplate;
+
+		public readonly bool IsEmpty => filteredTemplates == null || (filteredTemplates.Length == 0 && defaultTemplate == null);
+
+		public readonly RazorTemplateInfo? GetLayoutFor(string relPath)
+		{
+			if (filteredTemplates != null)
+				foreach (var (m, t) in filteredTemplates)
+					if (m.Match(relPath).HasMatches)
+						return t;
+
+			return defaultTemplate;
+		}
+
+		public static DirectoryLayoutTemplates ForDirectory(Project project, string fullDirectoryPath)
+		{
+			var ret = new DirectoryLayoutTemplates();
+
+			var filtered = new List<(Matcher FilenameMatcher, RazorTemplateInfo Template)>();
+
+			foreach (var f in Directory.EnumerateFiles(fullDirectoryPath, "_layout*.cshtml").Order(StringComparer.Ordinal))
+			{
+				var parts = LayoutTemplateNameMatcher().Match(Path.GetFileName(f));
+
+				Debug.Assert(parts.Success);
+
+				var layoutSource = new InputFile(project, '/' + Path.GetRelativePath(project.ContentDirectory, f));
+				var template = project.GetRazorPageInfo(layoutSource);
+
+				var pattern = parts.Groups["pattern"];
+				if (pattern.Success)
+				{
+					var matcher = Helpers.CreateMatcher(pattern.Value, mustBeAbsolute: false);
+					filtered.Add((matcher, template));
+				}
+				else
+				{
+					ret.defaultTemplate = template;
+				}
+			}
+
+			ret.filteredTemplates = filtered.ToArray();
+
+			return ret;
+		}
+	}
+
+	private readonly Lock layoutTemplateInfosLock = new();
+	private readonly Dictionary<string, DirectoryLayoutTemplates> layoutTemplateInfos = new(StringComparer.Ordinal);
+
+	private async Task<RazorLayout?> GetLayout(string fullDirectoryPath, string relPath)
+	{
+		bool hasInfos;
+		DirectoryLayoutTemplates infos;
+		lock (layoutTemplateInfosLock)
+			hasInfos = layoutTemplateInfos.TryGetValue(fullDirectoryPath, out infos);
+
+		if (!hasInfos)
+		{
+			infos = DirectoryLayoutTemplates.ForDirectory(this, fullDirectoryPath);
+			lock (layoutTemplateInfosLock)
+				if (!layoutTemplateInfos.TryAdd(fullDirectoryPath, infos))
+					infos = layoutTemplateInfos[fullDirectoryPath];
+		}
+
+		var templateInfo = infos.GetLayoutFor(relPath);
+		if (templateInfo == null)
+			return null;
+
+		await templateInfo.WaitForInitialization();
+
+		if (!templateInfo.PageType.IsAssignableTo(typeof(RazorLayout)))
+			throw new InvalidDataException("A layout file has an invalid base type.");
+
+		return (RazorLayout)templateInfo.Create();
+	}
+
+	private RazorTemplateInfo GetRazorPageInfo(InputFile origin)
+	{
+		ArgumentNullException.ThrowIfNull(origin);
 
 		lock (razorTemplateInfosLock)
 		{
-			var key = path.Substring(1);
+			var key = origin.ContentRelativePath.Substring(1);
 			if (!razorTemplateInfos.TryGetValue(key, out var info))
-				razorTemplateInfos.Add(key, info = new(this, path));
+				razorTemplateInfos.Add(key, info = new(origin));
 
 			return info;
 		}
@@ -469,10 +553,9 @@ partial class Project
 
 	private class RazorTemplateInfo
 	{
-		public RazorTemplateInfo(Project project, string path)
+		public RazorTemplateInfo(InputFile origin)
 		{
-			Project = project;
-			SourcePath = path;
+			this.Origin = origin;
 		}
 		
 		private Task? initializationTask;
@@ -484,15 +567,17 @@ partial class Project
 
 		private void Initialize()
 		{
+			var sourcePath = Origin.ContentRelativePath.Substring(1);
+
 			//process the Razor page
 
-			var fileName = Path.GetFileName(SourcePath);
-			if (fileName == LayoutTemplateName)
+			var fileName = Path.GetFileName(sourcePath);
+			if (LayoutTemplateNameMatcher().IsMatch(fileName))
 				BaseType = typeof(RazorLayout);
 			else if (fileName.StartsWith('_'))
 				BaseType = typeof(RazorPartial);
 
-			TypeName = $"{BaseType.Name}_{Helpers.GetHashString(SourcePath)}";
+			TypeName = $"{BaseType.Name}_{Helpers.GetHashString(sourcePath)}";
 
 			string source;
 			string baseCachePath;
@@ -500,7 +585,7 @@ partial class Project
 			string assemblyFile;
 			lock (Project.razorEngineLock) //RazorProjectEngine is *probably* thread-safe, but I can't find the docs to prove it
 			{
-				var file = Project.razorEngine.FileSystem.GetItem(SourcePath);
+				var file = Project.razorEngine.FileSystem.GetItem(sourcePath);
 				var code = Project.razorEngine.Process(file);
 
 				baseCachePath = file.RelativePhysicalPath;
@@ -576,7 +661,7 @@ partial class Project
 			if (!CheckDiagnostics(compilation.GetDiagnostics()))
 			{
 				Helpers.DeleteNoThrowIoException(assemblyFile);
-				throw new InvalidDataException($"Unable to compile page '{SourcePath}'.");
+				throw new InvalidDataException($"Unable to compile page '{Origin}'.");
 			}
 
 			EmitAssembly(compilation, assemblyFile);
@@ -589,8 +674,8 @@ partial class Project
 			pageType = assembly.GetType($"{Namespace}.{TypeName}");
 		}
 
-		public Project Project { get; }
-		public string SourcePath { get; }
+		public InputFile Origin { get; }
+		public Project Project => Origin.Project;
 
 		public string Namespace { get; private set; } = RazorContentNamespace;
 		public string TypeName { get; private set; } = "Page";
@@ -601,7 +686,7 @@ partial class Project
 		private Type? pageType;
 		public Type PageType => pageType ?? throw new InvalidOperationException();
 
-		public object Create(params object?[] args)
+		public object Create(params ReadOnlySpan<object?> extraArgs)
 		{
 			var initializationTask = WaitForInitialization();
 
@@ -611,7 +696,7 @@ partial class Project
 			if (initializationTask.IsFaulted || initializationTask.IsCanceled)
 				initializationTask.GetAwaiter().GetResult(); //rethrows for us
 
-			return Activator.CreateInstance(pageType!, args: args)!;
+			return Activator.CreateInstance(pageType!, args: [Origin, ..extraArgs])!;
 		}
 	}
 

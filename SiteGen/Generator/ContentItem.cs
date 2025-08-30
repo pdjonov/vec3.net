@@ -213,16 +213,7 @@ public static class ContentItemExtensions
 {
 	public static IEnumerable<ContentItem> WhereSourcePathMatches(this IEnumerable<ContentItem> items, string? include, string? exclude = null)
 	{
-		if (include != null && !include.StartsWith('/'))
-			throw new ArgumentException(paramName: nameof(include), message: "Patterns must be absolute.");
-		if (exclude != null && !exclude.StartsWith('/'))
-			throw new ArgumentException(paramName: nameof(exclude), message: "Patterns must be absolute.");
-
-		var matcher = new Matcher(StringComparison.Ordinal);
-		if (include != null)
-			matcher.AddInclude(include.Substring(1));
-		if (exclude != null)
-			matcher.AddExclude(exclude.Substring(1));
+		var matcher = Helpers.CreateMatcher(include, exclude);
 
 		return items.Where(it =>
 			it.Origin is InputFile inFile &&

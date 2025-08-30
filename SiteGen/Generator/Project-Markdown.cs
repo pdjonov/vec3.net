@@ -80,26 +80,6 @@ partial class Project
 			from type in siteCodeAssembly.GetExportedTypes()
 			let attr = type.GetCustomAttribute<FrontMatterOfAttribute>()
 			where attr != null && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public, []) != null
-			select (CreateMatcher(attr.Patterns, exclude: attr.Exclude), type));
-
-		static Matcher CreateMatcher(IEnumerable<string>? include, IEnumerable<string>? exclude = null)
-		{
-			if (include != null && !include.Any(i => i.StartsWith('/')))
-				throw new ArgumentException(paramName: nameof(include), message: "Patterns must be absolute.");
-			if (exclude != null && !exclude.Any(i => i.StartsWith('/')))
-				throw new ArgumentException(paramName: nameof(exclude), message: "Patterns must be absolute.");
-
-			var ret = new Matcher(StringComparison.Ordinal);
-
-			if (include != null)
-				foreach (var p in include)
-					ret.AddInclude(p);
-
-			if (exclude != null)
-				foreach (var p in exclude)
-					ret.AddExclude(p);
-
-			return ret;
-		}
+			select (Helpers.CreateMatcher(attr.Patterns, exclude: attr.Exclude), type));
 	}
 }

@@ -10,8 +10,9 @@ public class PostFrontMatter : IFrontMatter
 {
 	public string? Title { get; set; } //IFrontMatter.Title
 	public string? Permalink { get; set; } //IFrontMatter.Permalink
-	public DateTime? Date;
-	public TimeSpan? Time; //only used when multiple posts share a date
+	public DateTime Date;
+	public TimeSpan Time; //only used when multiple posts share a date
+	public bool Draft;
 	public DateTime[]? Updated;
 	public string Author = "phill";
 	public string? Series;
@@ -19,7 +20,7 @@ public class PostFrontMatter : IFrontMatter
 	public string[]? Tags;
 	public Note[]? Notes;
 
-	public DateTime? LastUpdated
+	public DateTime LastUpdated
 	{
 		get
 		{
@@ -43,19 +44,17 @@ public class PostFrontMatter : IFrontMatter
 		if (dateGroup.Success)
 		{
 			var parsed = DateTime.ParseExact(dateGroup.ValueSpan, "yyyy-MM-dd", CultureInfo.InvariantCulture);
-			if (Date == null)
+			if (Date == default)
 				Date = parsed;
 			if (Date != parsed)
 				throw new InvalidDataException("The front matter and filename must not disagree on the date.");
 		}
-		else if (Date == null)
+		else if (Date == default)
 		{
 			throw new InvalidDataException("If a date is not provided in the front matter then it must be inferrable from the filename.");
 		}
 
-		var linkGroup = match.Groups["link"];
-		if (Permalink == null)
-			Permalink = linkGroup.Value;
+		Permalink ??= match.Groups["link"].Value;
 	}
 
 	private static readonly Regex parseFileName = new Regex(@"^(?:(?<date>\d{4}-\d{2}-\d{2})-)?(?<link>.+)$",
@@ -76,7 +75,7 @@ public static class Posts
 		return
 			from it in content.WhereSourcePathMatches("/posts/*.md")
 			let ret = (Page: it as MarkdownPage, FrontMatter: it.FrontMatter as PostFrontMatter)
-			where ret.Page != null && ret.FrontMatter != null
+			where ret.Page != null && ret.FrontMatter != null && !ret.FrontMatter.Draft
 			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
 			select ret;
 	}

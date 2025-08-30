@@ -8,7 +8,7 @@ notes:
   - type: error
     date: 2020-10-07
     text: >
-        <b>Warning:</b> this post is, as you can see, a bit dated, and it's only getting moreso as time passes. The fundamental principles here are sound, but you should use SHA-2 (or whatever is current at the date you're reading this) rather than SHA-1 (which is now known to have some weaknesses) or MD5 (which is known to be even less secure). Also be sure you're using an up to date crypto library for the basic operations.
+        **Warning:** this post is, as you see, a bit dated, and it's only getting moreso as time passes. The fundamental principles here are sound, but you should use SHA-2 (or whatever is current at the date you're reading this) rather than SHA-1 (which is now known to have some weaknesses) or MD5 (which is known to be even less secure). Also be sure you're using an up to date crypto library for the basic operations.
 ---
 One of the things that comes up when sending data over the internet is verifying that it hasn't been corrupted. This is generally a simple thing to resolve: send the data and a good [hash](http://en.wikipedia.org/wiki/Hash_function) ([MD5](http://en.wikipedia.org/wiki/MD5) or [SHA-1](http://en.wikipedia.org/wiki/SHA-1)) of the data together. Recompute the hash on the client side and compare it to the hash you sent. If any bits have changed, the two won't match, and you know you need to redownload the file. I suppose it's possible both the data and hash could be corrupted in such a way that they match, but if your hash function is any good then the likelihood of this happening by chance is so astonishingly low that it doesn't bear consideration.
 
