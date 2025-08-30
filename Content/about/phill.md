@@ -2,7 +2,7 @@
 	<img src="/assets/img/Avatar-350x450.webp" alt="A stylized picture of the author." style="max-height:300px;margin-left:-60px;" />
 </div>
 
-My name's Phill, and I'm [a video game programmer](about/career/).
+My name's Phill, and I'm [a video game programmer](about/career).
 
 Sometimes I write code (and a little bit of it even makes it onto [GitHub](https://github.com/pdjonov)). Sometimes I solder microcontrollers to LED strips. Sometimes (rarely - *too* rarely) I even write stuff here.
 
