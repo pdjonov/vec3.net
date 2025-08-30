@@ -33,11 +33,11 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 
 	protected override async Task CoreInitialize()
 	{
-		var sourceText = await LoadText(Origin.ContentRelativePath);
+		var sourceText = await LoadText(ContentRelativePath);
 
 		source = await Project.ParseMarkdown(sourceText);
 
-		OutputPath = Path.ChangeExtension(Origin.ContentRelativePath, ".html");
+		OutputPath = Path.ChangeExtension(ContentRelativePath, Path.GetFileNameWithoutExtension(ContentRelativePath) == "index" ? ".html" : null);
 
 		var frontMatterYamlBlock = source.
 			Descendants<YamlFrontMatterBlock>().
