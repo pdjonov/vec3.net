@@ -195,31 +195,87 @@ partial class Project
 				var innerEnumerateMethod = new MethodDeclarationIntermediateNode()
 				{
 					Modifiers = { "async" },
-					ReturnType = $"{GlobalPrefix}{typeof(Task<>).FullNameWithoutGenericTag()}<{GlobalPrefix}{typeof(IEnumerable<>).FullNameWithoutGenericTag()}<{typeName}>>",
+					ReturnType = $"{GlobalPrefix}{typeof(Task).FullName}",
 					MethodName = "EnumerateImpl",
 				};
 				innerEnumerateMethod.Children.AddRange(enumerateNode.Children.SkipWhile(c => c is DirectiveTokenIntermediateNode));
 
-				classNode.Children.Add(new MethodDeclarationIntermediateNode()
+				var enumerateBlock = new CSharpCodeIntermediateNode()
 				{
-					Modifiers = { "public", "override", "async" },
-					ReturnType = $"{GlobalPrefix}{typeof(Task<>).FullNameWithoutGenericTag()}<{GlobalPrefix}{typeof(IEnumerable<>).FullNameWithoutGenericTag()}<object>>",
-					MethodName = "Enumerate",
 					Children =
 					{
-						innerEnumerateMethod,
-						new CSharpCodeIntermediateNode()
+						new IntermediateToken()
 						{
-							Children =
+							Kind = TokenKind.CSharp,
+							Content =
+								"if (base.IsEnumeratorInstance) {\n" +
+								$"{GlobalPrefix}{typeof(IEnumerable<>).FullNameWithoutGenericTag()}<{typeName}> Items = null!;\n" +
+								$"{GlobalPrefix}{typeof(Func<,>).FullNameWithoutGenericTag()}<{typeName}, string> OutputPath = null!;\n",
+						},
+						innerEnumerateMethod,
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content =
+								$"await {innerEnumerateMethod.MethodName}();\n" +
+								"base.InitializeEnumerator(Items, OutputPath);\n" +
+								"return;\n" +
+								"}",
+						},
+					}
+				};
+
+				var initMethod = GetInitializeMethod(classNode);
+				initMethod.Children.Insert(0, enumerateBlock);
+
+				var originTypeName = GlobalPrefix + typeof(EnumeratedTemplateInstance).FullName;
+				var outputPathTypeName = $"{GlobalPrefix}{typeof(Func<,>).FullNameWithoutGenericTag()}<object, string>";
+
+				classNode.Children.Add(
+					new MethodDeclarationIntermediateNode()
+					{
+						Modifiers = { "protected", "override" },
+						ReturnType = GlobalPrefix + typeof(ContentItem).FullName,
+						Parameters =
+						{
+							new MethodParameter()
 							{
-								new IntermediateToken()
+								TypeName = originTypeName,
+								ParameterName = "origin",
+							},
+							new MethodParameter()
+							{
+								TypeName = outputPathTypeName,
+								ParameterName = "outputPath",
+							},
+						},
+						MethodName = "CreateInstance",
+						Children =
+						{
+							new CSharpCodeIntermediateNode()
+							{
+								Children =
 								{
-									Kind = TokenKind.CSharp,
-									Content = $"return await {innerEnumerateMethod.MethodName}();",
+									new IntermediateToken()
+									{
+										Kind = TokenKind.CSharp,
+										Content = $"return new {classNode.ClassName}(origin, outputPath);"
+									},
 								}
 							}
 						},
-					},
+					});
+
+				classNode.Children.Add(new CSharpCodeIntermediateNode()
+				{
+					Children =
+					{
+						new IntermediateToken()
+						{
+							Kind = TokenKind.CSharp,
+							Content = $"private {classNode.ClassName}({originTypeName} origin, {outputPathTypeName} outputPath) : base(origin, outputPath) {{ }}"
+						}
+					}
 				});
 			}
 		}

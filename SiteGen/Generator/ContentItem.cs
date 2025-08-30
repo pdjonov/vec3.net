@@ -157,12 +157,17 @@ public abstract class ContentItem
 
 	protected abstract Task CoreWriteContent(Stream outStream, string outputPath);
 
-	protected InputFile? TryGetInputFile(string relativePath)
+	protected string ResolveRelativePath(string relativePath)
 	{
-		var contentPath = Helpers.CombineContentRelativePaths(
+		return Helpers.CombineContentRelativePaths(
 			relativeTo: Origin is InputFile inputFileOrigin ?
 				Path.GetDirectoryName(inputFileOrigin.ContentRelativePath)! : "",
-			path: relativePath);
+			path: relativePath); ;
+	}
+
+	protected InputFile? TryGetInputFile(string relativePath)
+	{
+		var contentPath = ResolveRelativePath(relativePath);
 
 		//ToDo: track the dependency
 
@@ -175,10 +180,7 @@ public abstract class ContentItem
 
 	protected Task<string> LoadText(string relativePath)
 	{
-		var contentPath = Helpers.CombineContentRelativePaths(
-			relativeTo: Origin is InputFile inputFileOrigin ?
-				Path.GetDirectoryName(inputFileOrigin.ContentRelativePath)! : "",
-			path: relativePath);
+		var contentPath = ResolveRelativePath(relativePath);
 
 		//ToDo: track the dependency
 
@@ -187,15 +189,16 @@ public abstract class ContentItem
 	}
 }
 
-public abstract class ContentOrigin
+public abstract class FileContentItem : ContentItem
 {
-	public Project Project { get; }
+	public new InputFile Origin => (InputFile)base.Origin;
 
-	protected ContentOrigin(Project project)
+	public string ContentRelativePath => Origin.ContentRelativePath;
+	public string FullPath => Origin.FullPath;
+
+	protected FileContentItem(InputFile origin)
+		: base(origin)
 	{
-		ArgumentNullException.ThrowIfNull(project);
-
-		this.Project = project;
 	}
 }
 
@@ -207,6 +210,13 @@ public interface IHtmlContent
 public interface IPage
 {
 	string? Title { get; }
+}
+
+public interface IEnumeratedContent
+{
+	bool IsEnumeratorInstance { get; } //must return a real value *before* Initialize runs
+	IEnumerable<object>? Enumerator { get; }
+	ContentItem CreateInstance(object item);
 }
 
 public static class ContentItemExtensions

@@ -59,27 +59,9 @@ public partial class Project
 
 	protected virtual async Task LoadCore()
 	{
-		var inputItems = ScanInputDirectory();
+		var inputItems = new List<ContentItem>();
 
-		CompileSiteCode(inputItems.OfType<SiteCode>());
-		inputItems.RemoveAll(it => it is SiteCode);
-
-		for (var i = 0; i < inputItems.Count; i++)
-			if (inputItems[i] is DeferredRazorPage d)
-				inputItems[i] = await GetRazorPage(d.Origin);
-
-		Debug.Assert(!inputItems.Any(i => i is DummyContent));
-
-		await Task.WhenAll(inputItems.Select(i => i.Initialize()));
-
-		content.AddRange(inputItems);
-
-		//ToDo: generated content
-	}
-
-	private List<ContentItem> ScanInputDirectory()
-	{
-		var ret = new List<ContentItem>();
+		//do the initial directory scan
 
 		ScanDirectory(ContentDirectory);
 
@@ -104,7 +86,7 @@ public partial class Project
 				};
 
 				if (item != null)
-					ret.Add(item);
+					inputItems.Add(item);
 			}
 
 			foreach (var dir in Directory.EnumerateDirectories(path))
@@ -119,7 +101,67 @@ public partial class Project
 			}
 		}
 
-		return ret;
+		//pull out the contents of site.dll
+
+		CompileSiteCode(inputItems.OfType<SiteCode>());
+		inputItems.RemoveAll(it => it is SiteCode);
+
+		//now we can start compiling razor pages...
+
+		for (var i = 0; i < inputItems.Count; i++)
+			if (inputItems[i] is DeferredRazorPage d)
+				inputItems[i] = await GetRazorPage(d.Origin);
+
+		Debug.Assert(!inputItems.Any(i => i is DummyContent));
+
+		//initialize the items
+
+		while (inputItems.Count != 0)
+		{
+			var deferredItems = new List<ContentItem>();
+
+			for (var i = 0; i < inputItems.Count; i++)
+			{
+				var item = inputItems[i];
+				switch (item)
+				{
+				case IEnumeratedContent enumContent when enumContent.IsEnumeratorInstance:
+					deferredItems.Add(item);
+					inputItems.RemoveAt(i--);
+					break;
+				}
+			}
+
+			await Task.WhenAll(inputItems.Select(i => i.Initialize()));
+			content.AddRange(inputItems);
+			inputItems.Clear();
+
+			await Task.WhenAll(deferredItems.Select(i => i.Initialize()));
+			foreach (var deferred in deferredItems)
+			{
+				switch (deferred)
+				{
+				case IEnumeratedContent enumContent:
+					{
+						var items = enumContent.Enumerator;
+						if (items == null)
+							goto default;
+
+						foreach (var newIt in items)
+						{
+							var content = enumContent.CreateInstance(newIt);
+							if (content != null)
+								inputItems.Add(content);
+						}
+					}
+					break;
+
+				default:
+					inputItems.Add(deferred);
+					break;
+				}
+			}
+		}
 	}
 
 	private abstract class DummyContent(InputFile origin) : FileContentItem(origin)

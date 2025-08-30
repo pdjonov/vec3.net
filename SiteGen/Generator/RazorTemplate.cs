@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
@@ -179,19 +180,66 @@ public abstract class RazorPage : RazorTemplate
 	}
 }
 
-public abstract class EnumeratedRazorPage : RazorPage
+public abstract class EnumeratedRazorPage : RazorPage, IEnumeratedContent
 {
 	protected EnumeratedRazorPage(InputFile origin) : base(origin) { }
 
+	protected EnumeratedRazorPage(EnumeratedTemplateInstance origin, Func<object, string> outputPath) : base(origin)
+	{
+		ArgumentNullException.ThrowIfNull(outputPath);
+
+		this.getOutputPathForItem = outputPath;
+	}
+
+	protected abstract ContentItem CreateInstance(EnumeratedTemplateInstance origin, Func<object, string> outputPath);
+	ContentItem IEnumeratedContent.CreateInstance(object item)
+	{
+		Debug.Assert(getOutputPathForItem != null);
+		return CreateInstance(new(Origin, item), getOutputPathForItem);
+	}
+
 	protected override Task CoreInitialize()
 	{
-		OutputPath = null;
+		string? outputPath;
+		if (IsEnumeratorInstance)
+		{
+			outputPath = null;
+		}
+		else
+		{
+			Debug.Assert(getOutputPathForItem != null);
+
+			outputPath = getOutputPathForItem(Item);
+			getOutputPathForItem = null;
+
+			outputPath = ResolveRelativePath(outputPath);
+		}
+		OutputPath = outputPath;
 
 		return InitializeTemplate();
 	}
 
-	public abstract Task<IEnumerable<object?>> Enumerate();
-	protected object? Item { get; }
+	public bool IsEnumeratorInstance => Origin is not EnumeratedTemplateInstance;
+	protected object Item => (Origin as EnumeratedTemplateInstance)?.Item ?? throw new InvalidOperationException("Item cannot be accessed on the enumerator instance.");
+
+	private IEnumerable<object>? items;
+	IEnumerable<object>? IEnumeratedContent.Enumerator => items;
+
+	private Func<object, string>? getOutputPathForItem;
+
+	protected void InitializeEnumerator<T>(IEnumerable<T> Items, Func<T, string> OutputPath)
+	{
+		ArgumentNullException.ThrowIfNull(Items);
+		ArgumentNullException.ThrowIfNull(OutputPath);
+
+		ThrowIfNotInitializing();
+
+		Debug.Assert(IsEnumeratorInstance);
+		Debug.Assert(items == null);
+
+		this.items = Items.Cast<object>();
+		this.getOutputPathForItem = it => OutputPath((T)it);
+	}
 }
 
 public abstract class RazorLayout : RazorTemplate

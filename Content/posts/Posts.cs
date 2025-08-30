@@ -70,6 +70,8 @@ public class Note
 
 public static class Posts
 {
+	public static readonly int ExcerptsPerListing = 50;
+
 	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> GetPosts(this IEnumerable<ContentItem> content)
 	{
 		return
@@ -87,5 +89,49 @@ public static class Posts
 			from t in p.FrontMatter.Tags ?? []
 			orderby t
 			group p by t;
+	}
+
+	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> ByTag(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts, string tag)
+	{
+		return
+			from p in posts
+			where (p.FrontMatter.Tags ?? []).Contains(tag)
+			select p;
+	}
+
+	public static IEnumerable<IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)>> BySeries(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts)
+	{
+		return
+			from p in posts
+			where !string.IsNullOrWhiteSpace(p.FrontMatter.Series)
+			group p by p.FrontMatter.Series;
+	}
+
+	public static string SeriesTitle(IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)> series)
+	{
+		var ret = (string?)null;
+		foreach (var p in series)
+		{
+			var title = p.FrontMatter.SeriesTitle;
+			if (string.IsNullOrWhiteSpace(title))
+				continue;
+
+			if (ret != null && ret != title)
+				throw new Exception($"Posts disagree about the correct title of series {series.Key}.");
+
+			ret = title;
+		}
+
+		return ret ?? series.Key;
+	}
+
+	public static string TagPath(string tag)
+	{
+		return "/posts/tags/" + tag;
+	}
+
+	public static string TagUrl(string tag)
+	{
+		return "/posts/tags/" + Uri.EscapeDataString(tag);
 	}
 }

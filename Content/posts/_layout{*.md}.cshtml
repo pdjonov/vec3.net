@@ -22,8 +22,7 @@
 	<div class="post-tags">
 		@foreach (var tag in frontMatter.Tags ?? Array.Empty<string>())
 		{
-			<a href="fixme" class="post-tag badge">@tag</a>
-			@* <a href="/posts/tags/@Uri.EscapeDataString(tag)" class="post-tag badge">@tag</a> *@
+			<a href="@Posts.TagUrl(tag)" class="post-tag badge">@tag</a>
 		}
 	</div>
 }

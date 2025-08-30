@@ -1,16 +1,18 @@
+@model MarkdownPage
+
 @{
-	var post = Model;
-	var date = post.GetDateTime("date");
-	var updated = SiteSettings.GetLastUpdate(post);
+	var frontMatter = (PostFrontMatter)Model.FrontMatter;
+	var date = frontMatter.Date;
+	var lastUpdated = frontMatter.LastUpdated;
 }
 
 <div class="post-no-excerpt">
-	<a href="@post.GetLink()">
-	@post.Get("Title")
+	<a href="@UrlTo(Model)">
+	@frontMatter.Title
 	<div class="post-date">@date.ToString("dd MMM yyyy")</div>
-	@if (updated > date)
+	@if (lastUpdated > date)
 	{
-		<div class="post-update-date">(Updated: @updated.ToString("dd MMM yyyy"))</div>
+		<div class="post-update-date">(Updated: @lastUpdated.ToString("dd MMM yyyy"))</div>
 	}
 	</a>
 </div>

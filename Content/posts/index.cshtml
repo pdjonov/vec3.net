@@ -24,14 +24,14 @@
 				month = date.Month;
 				<h3 class="date-month">@(date.ToString("MMMM"))</h3>
 
-				if (count > 5)
+				if (count > Posts.ExcerptsPerListing)
 					includeExcerpts = false;
 			}
 
 			@await RenderPartial(
 				includeExcerpts ?
 					"_listitemwithexcerpt.cshtml" :
-					"_listitemwithexcerpt.cshtml",
+					"_listitem.cshtml",
 				page)
 		}
 	</div>
@@ -39,7 +39,7 @@
 		<h1>Tags</h1>
 		@foreach (var (tag, posts) in Project.Content.GetPosts().ByTag())
 		{
-			<a href="fixme">@tag (@posts.Count())</a>
+			<a href="@Posts.TagUrl(tag)">@tag (@posts.Count())</a>
 		}
 	</div>
 </div>
