@@ -30,20 +30,26 @@ partial class Project
 		return Task.FromResult(ret);
 	}
 
-	public Task<string> RenderMarkdown(MarkdownDocument document)
+	public Task<string?> RenderMarkdown(MarkdownDocument? document)
 	{
-		ArgumentNullException.ThrowIfNull(document);
+		var ret = (string?)null;
 
-		var ret = Markdown.ToHtml(document, MarkdownPipeline);
+		if (document != null)
+			ret = Markdown.ToHtml(document, MarkdownPipeline);
+
 		return Task.FromResult(ret);
 	}
 
-	public Task<string> RenderMarkdown(string markdown)
+	public Task<string?> RenderMarkdown(string? markdown)
 	{
-		ArgumentNullException.ThrowIfNull(markdown);
+		var ret = (string?)null;
 
-		var doc = Markdown.Parse(markdown, MarkdownPipeline);
-		var ret = Markdown.ToHtml(doc, MarkdownPipeline);
+		if (markdown != null)
+		{
+			var doc = Markdown.Parse(markdown, MarkdownPipeline);
+			ret = Markdown.ToHtml(doc, MarkdownPipeline);
+		}
+
 		return Task.FromResult(ret);
 	}
 

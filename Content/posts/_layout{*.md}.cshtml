@@ -27,6 +27,16 @@
 	</div>
 }
 
-@* @Html.Partial("/widgets/_editorsnotes.cshtml") *@
+
+@foreach (var note in frontMatter.Notes ?? [])
+{
+	<div class="editors-note alert @(!string.IsNullOrEmpty(note.Type) ? "alert-" + note.Type : "")">
+		@await RenderMarkdown(note.Text)
+		@if (note.Date != default)
+		{
+			<div class="date">@note.Date.ToString("MMM dd, yyyy")</div>
+		}
+	</div>
+}
 
 @await RenderBody()

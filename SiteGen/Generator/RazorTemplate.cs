@@ -127,6 +127,9 @@ public abstract class RazorTemplate : HtmlContentItem
 
 	protected string? RenderRaw(string? html) => html;
 
+	protected Task<string?> RenderMarkdown(string? markdown)
+		=> Project.RenderMarkdown(markdown);
+
 	protected Task<string> RenderPartial(string path, object? model = null)
 	{
 		return Path.GetExtension(path) switch
