@@ -21,8 +21,10 @@ public static class Minify
 		//therefore, minifying JS content is opt-*in* since otherwise stuff just breaks
 		//ToDo: figure out how to shell out to one of the actually-maintained minifiers
 
-		if (!content.StartsWith("//!!minify"))
+		const string MinifyDirective = "/*!!minify!!*/";
+		if (!content.StartsWith(MinifyDirective))
 			return Task.FromResult(content);
+		content = content.Substring(MinifyDirective.Length);
 
 		var res = Uglify.Js(content);
 		if (res.HasErrors)
