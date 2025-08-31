@@ -1,8 +1,8 @@
 # vec3.net
 
-<img src="Content/assets/img/Avatar-350x450.webp" alt="A stylized picture of the author." align=right height=300px />
+<img src="Content/assets/img/Avatar-350x450.webp" alt="A stylized picture of the author." align="right" height="300px" />
 
-This is the source for my personal website, which is available online at https://vec3.net.
+This is the source for [my personal website](https://vec3.net), which is mostly just a rambly blog.
 
 The site consists of nothing but static content, most of which is authored using [Markdown](https://daringfireball.net/projects/markdown/). That is then transformed into the final site resources by a relatively simple site generator project, which you'll also find in this repo.
 
