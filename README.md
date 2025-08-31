@@ -1,6 +1,6 @@
 # vec3.net
 
-<img src="Content/assets/img/Avatar-350x450.webp" alt="A stylized picture of the author." align="right" height="300px" />
+<img src="Content/assets/img/Avatar-350x450-light.webp" alt="A stylized picture of the author." align="right" height="300px" />
 
 This is the source for [my personal website](https://vec3.net), which is mostly just a rambly blog.
 
