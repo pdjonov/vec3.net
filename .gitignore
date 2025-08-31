@@ -1,3 +1,4 @@
 SiteGen/*/bin
 SiteGen/*/obj
 Content/.*
+publish.sh
