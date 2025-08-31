@@ -1,5 +1,17 @@
 <div class="alignright caption-box" style="background-color:transparent;">
-	<img src="/assets/img/Avatar-350x450-dark.webp" alt="A stylized picture of the author." style="max-height:300px;margin-left:-60px;" />
+	<style>
+		#author-img {
+			content: url("/assets/img/Avatar-350x450-dark.webp");
+			max-height: 300px;
+			margin-left: -60px;
+		}
+		@media(prefers-color-scheme: light) {
+			#author-img {
+				content: url("/assets/img/Avatar-350x450-light.webp");
+			}
+		}
+	</style>
+	<img id="author-img" alt="A stylized picture of the author." />
 </div>
 
 My name's Phill, and I'm [a video game programmer](about/career).

@@ -122,7 +122,7 @@ body {
 
 @media(prefers-color-scheme: light) {
     .top-row {
-        border-bottom-color: #eee;
+        border-bottom-color: #fff;
     }
     .top-row .links-bg {
         background: linear-gradient(transparent, #8884 2px, #8ac4 50%, #eef8 100%)
