@@ -184,6 +184,10 @@ a:hover {
     margin-left: 24px;
     margin-top: 4px;
 }
+.aligncenter {
+    display: block;
+    margin: 4px auto 0 auto;
+}
 .caption-text {
     font-size: smaller;
 }
@@ -238,6 +242,7 @@ div.alert > p:has(+.date) {
 code {
     font-family: Consolas, 'Courier New', monospace;
     color: var(--body-code-color);
+    tab-size: 4;
 }
 code:not(pre*) {
     background: var(--panel-background-color);
