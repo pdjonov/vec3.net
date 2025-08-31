@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-
+using AngleSharp.Dom;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
@@ -637,7 +637,8 @@ partial class Project
 				var pattern = parts.Groups["pattern"];
 				if (pattern.Success)
 				{
-					var matcher = Helpers.CreateMatcher(pattern.Value, mustBeAbsolute: false);
+					var glob = Uri.UnescapeDataString(pattern.Value);
+					var matcher = Helpers.CreateMatcher(glob, mustBeAbsolute: false);
 					filtered.Add((matcher, template));
 				}
 				else
