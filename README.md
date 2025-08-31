@@ -6,9 +6,9 @@ This is the source for [my personal website](https://vec3.net), which is mostly 
 
 The site consists of nothing but static content, most of which is authored using [Markdown](https://daringfireball.net/projects/markdown/). That is then transformed into the final site resources by a relatively simple site generator project, which you'll also find in this repo.
 
-No, this is not a producmore _and less_t that I'm wrapping up and selling or redisributing or anything like that. But the code in the `SiteGen/` directory _is_ free and you're welcome to fork it.
+No, this is not a product that I'm wrapping up and selling or redisributing or anything like that. But the code in the `SiteGen/` directory _is_ free and you're welcome to fork it to suit your own needs.
 
-The stuff in the `Content/` folder is all Copyright © 2025 Philip Djonov, and all rights are reserved. (Also it's probly full of typos and people will make fun of you for trying to steal the typos.)
+The stuff in the `Content/` folder is all Copyright © Philip Djonov, and all rights are reserved. (Also it's probly full of typos and people will make fun of you for trying to steal the typos.)
 
 <br clear="right"/>
 
