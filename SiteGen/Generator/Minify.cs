@@ -59,6 +59,9 @@ public static class Minify
 		foreach (var s in dom.GetElementsByTagName("script"))
 			s.TextContent = await Minify.JavaScript(s.TextContent);
 
+		foreach (var s in dom.GetElementsByTagName("style"))
+			s.TextContent = await Minify.Css(s.TextContent);
+
 		foreach (var n in dom.All)
 		{
 			var style = n.GetAttribute("style");
