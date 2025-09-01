@@ -133,7 +133,7 @@ return false;
 
 So, in this case, `n` indicated that we had one point left from the last iteration. The addition of the new point $A$ gives us two, which forms a line segment.
 
-<script type="text/javascript">
+<script>
     sketch.load(class {
         constructor(canvas) {
             canvas.add(this.grid = new sketch.grid())
@@ -228,7 +228,7 @@ inline vec3 cross_aba(const vec3 &a, const vec3 &b)
 
 This case is a little more involved, but here goes:
 
-<script type="text/javascript">
+<script>
     sketch.load(class {
         constructor(canvas) {
             canvas.add(this.grid = new sketch.grid())

@@ -11,6 +11,8 @@
 
 	var isPost = InnermostBody.IsPost();
 	var blurbText = (await InnermostBody.GetBlurbText()).NullIfEmpty();
+
+	var features = Site.GetPageFeatures(await GetBodyDom());
 }
 
 <!DOCTYPE html>
@@ -32,6 +34,7 @@
 	<meta property="og:image:height" content="256"/>
 
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 	<title>@title</title>
 
 	<link rel="icon" type="image/png" sizes="64x64" href="/assets/img/favicon/favicon-64.png">
@@ -39,38 +42,56 @@
 	<link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon/favicon-32.png">
 	<link rel="icon" type="image/png" sizes="24x24" href="/assets/img/favicon/favicon-24.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon/favicon-16.png">
+
 	<meta name="theme-color" content="#1e1e1e">
-
-	@* mathjax *@
-	<script>/*!!minify!!*/
-	MathJax = {
-		options: {
-			enableMenu: false,
-			enableExplorer: false,
-			a11y: {
-				//suuuuper annoying that we can't throw CSS at any of this
-				foregroundColor: 'Red',
-			},
-		},
-		tex: {
-			inlineMath: { '[+]': [['$', '$']] },
-			processEscapes: true,
-		}
-	};
-	</script>
-	<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.js"></script>
-
-	@* highlightjs *@
-	<link rel="stylesheet" href="/assets/hljs/hljs.css">
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.2/highlight.min.js"></script>
-	<script src="/assets/hljs/hlsl.js"></script>
-	<script src="/assets/hljs/slang.js"></script>
-
-	@* canvas *@
-	<script src="/assets/canvas.js"></script>
+	<meta name="theme-color" content="#efefef" media="(prefers-color-scheme: light)">
 
 	@* CSS *@
 	<link href="/assets/style.css" rel="stylesheet" />
+
+	@* mathjax *@
+	@if (features.Contains("math"))
+	{
+		<script>/*!!minify!!*/
+		MathJax = {
+			options: {
+				enableMenu: false,
+				enableExplorer: false,
+				a11y: {
+					//suuuuper annoying that we can't throw CSS at any of this
+					foregroundColor: 'Red',
+				},
+			},
+			tex: {
+				inlineMath: { '[+]': [['$', '$']] },
+				processEscapes: true,
+			}
+		};
+		</script>
+		<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@4.0.0/tex-mml-chtml.js"></script>
+	}
+
+	@* highlightjs *@
+	@if (features.Contains("hljs"))
+	{
+		<link rel="stylesheet" href="/assets/hljs/hljs.css">
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.2/highlight.min.js"></script>
+
+		if (features.Contains("language-hlsl"))
+		{
+			<script src="/assets/hljs/hlsl.js"></script>
+		}
+		if (features.Contains("language-slang"))
+		{
+			<script src="/assets/hljs/slang.js"></script>
+		}
+	}
+
+	@* canvas *@
+	@if (features.Contains("vec3.sketch"))
+	{
+		<script src="/assets/sketch.js"></script>
+	}
 
 	@* Page-specific extras *@
 	@await RenderSection("head", required: false)
@@ -100,11 +121,21 @@
 		@await RenderBody()
 	</div>
 
-	<script>/*!!minify!!*/
-		hljs.registerLanguage('hlsl', hljsDefineHlsl);
-		hljs.registerLanguage('slang', hljsDefineSlang);
-		hljs.initHighlightingOnLoad();
-	</script>
+	@* highlightjs *@
+	@if (features.Contains("hljs"))
+	{
+		<script>/*!!minify!!*/
+			@if (features.Contains("language-hlsl"))
+			{
+				<text>hljs.registerLanguage('hlsl', hljsDefineHlsl);</text>
+			}
+			@if (features.Contains("language-slang"))
+			{
+				<text>hljs.registerLanguage('slang', hljsDefineSlang);</text>
+			}
+			hljs.initHighlightingOnLoad();
+		</script>
+	}
 </body>
 
 </html>

@@ -10,7 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using AngleSharp.Dom;
+
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Extensions;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
@@ -383,6 +383,7 @@ partial class Project
 			[
 				typeof(Project),
 				typeof(Microsoft.AspNetCore.Razor.Hosting.RazorCompiledItemAttribute),
+				typeof(AngleSharp.Dom.Document),
 			];
 		foreach (var typ in referenceAssembliesOf)
 			ret.Add(MetadataReference.CreateFromFile(typ.Assembly.Location));

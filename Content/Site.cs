@@ -1,6 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+
+using AngleSharp.Dom;
+using AngleSharp.Html.Dom;
 
 public static class Site
 {
@@ -38,5 +43,34 @@ public static class Site
 			return null;
 
 		return str;
+	}
+
+	public static HashSet<string> GetPageFeatures(IElement pageBody)
+	{
+		var ret = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var child in pageBody.GetDescendants())
+		{
+			switch (child)
+			{
+				case IElement code when code.TagNameIs("code"):
+					foreach (var c in code.ClassList)
+						if (c.StartsWith("language-", StringComparison.OrdinalIgnoreCase))
+							if (ret.Add(c))
+								ret.Add("hljs");
+					break;
+
+				case IElement math when math.TagNameIs("span", "div") && math.HasClass("math"):
+					ret.Add("math");
+					break;
+
+				case IHtmlScriptElement script when script.IsJavaScript():
+					if ((script.Text ?? "").Contains("sketch.load"))
+						ret.Add("vec3.sketch");
+					break;
+			}
+		}
+
+		return ret;
 	}
 }

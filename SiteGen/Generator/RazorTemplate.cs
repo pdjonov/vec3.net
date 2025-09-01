@@ -6,6 +6,9 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 
+using AngleSharp.Dom;
+using AngleSharp.Html.Parser;
+
 namespace Vec3.Site.Generator;
 
 public abstract class RazorTemplate : HtmlContentItem
@@ -335,6 +338,16 @@ public abstract class RazorLayout : RazorTemplate
 			await item.PrepareContent();
 
 		return body;
+	}
+
+	protected async Task<IElement> GetBodyDom()
+	{
+		var body = await RenderBody();
+
+		var parser = new HtmlParser();
+
+		var doc = await parser.ParseDocumentAsync(body?.Content ?? "");
+		return doc.Body ?? doc.CreateElement("body");
 	}
 
 	protected string? GetTitle()
