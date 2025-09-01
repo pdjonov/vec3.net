@@ -1,16 +1,38 @@
+@{
+	const string SiteTitle = "Lone Henchman";
+
+	var bareTitle = GetTitle();
+	var title = bareTitle;
+
+	if (string.IsNullOrWhiteSpace(bareTitle))
+		title = bareTitle = SiteTitle;
+	else
+		title += " - " + SiteTitle;
+
+	var isPost = InnermostBody.IsPost();
+	var blurbText = (await InnermostBody.GetBlurbText()).NullIfEmpty();
+}
+
 <!DOCTYPE html>
 
 <head>
 	<meta charset="utf-8" />
 
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	@{
-		const string SiteTitle = "Lone Henchman";
-		var title = GetTitle();
-		if (!string.IsNullOrEmpty(title))
-			title += " - ";
+	<meta property="og:type" content="@(isPost ? "article" : "website")">
+	<meta property="og:url" content="@this.GetCanonicalUrl()">
+	<meta property="og:title" content="@bareTitle">
+	@if (!string.IsNullOrWhiteSpace(blurbText))
+	{
+		<meta property="og:description" content="@blurbText">
 	}
-	<title>@title@SiteTitle</title>
+
+	@* ToDo: get a better og image *@
+	<meta property="og:image" content="@Site.RootUri/assets/img/ogimg-512x256.webp">
+	<meta property="og:image:width" content="512"/>
+	<meta property="og:image:height" content="256"/>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>@title</title>
 
 	<link rel="icon" type="image/png" sizes="64x64" href="/assets/img/favicon/favicon-64.png">
 	<link rel="icon" type="image/png" sizes="48x48" href="/assets/img/favicon/favicon-48.png">

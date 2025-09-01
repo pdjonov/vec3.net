@@ -210,6 +210,8 @@ public abstract class RazorPage : RazorTemplate
 
 		return InitializeTemplate();
 	}
+
+	protected HtmlLiteral SuppressBlurb() => HtmlLiteral.Create("<!-- no-blurb -->");
 }
 
 public abstract class EnumeratedRazorPage : RazorPage, IEnumeratedContent

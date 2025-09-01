@@ -8,9 +8,7 @@ tags:
   - Vulkan
 ---
 
-I've been working on a little VR project for a while, now. And one of the very first things I needed was something to _stand_ on. Floating in a black void is neat and all, but without reference points I had no way of knowing if tracking (and, importantly, my rendering code's interpretation of the trackig data) was functioning correctly.
-
-So I made an infinte plane to stand on.
+I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to serve as a floor. Here's how it works.
 
 <div class="caption-box aligncenter">
   <img src="/assets/img/liminal-plane.webp" alt="An infinite floor plane." />

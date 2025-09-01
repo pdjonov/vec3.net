@@ -11,10 +11,10 @@
 	Title = "Posts: " + Tag.Key;
 }
 
-@{
-	var count = 0;
-}
+@SuppressBlurb()
+
 <div class="post-list">
+	@{ var count = 0; }
 	@foreach (var post in Tag)
 	{
 		@await RenderPartial(

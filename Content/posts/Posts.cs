@@ -71,6 +71,12 @@ public static class Posts
 {
 	public static readonly int ExcerptsPerListing = 50;
 
+	public static bool IsPost(this IHtmlContent item)
+	{
+		var allPosts = item.Project.Content.GetPosts();
+		return allPosts.Any(p => p.Page == item);
+	}
+
 	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> GetPosts(this IEnumerable<ContentItem> content)
 	{
 		return
