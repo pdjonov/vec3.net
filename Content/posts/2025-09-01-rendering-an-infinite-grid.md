@@ -8,7 +8,7 @@ tags:
   - Vulkan
 ---
 
-I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to serve as a floor. Here's how it works.
+I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's how it works.
 
 <div class="caption-box aligncenter">
   <img src="/assets/img/liminal-plane.webp" alt="An infinite floor plane." />
@@ -374,6 +374,11 @@ There, nice and symmetrical.
 
 #### Computing `lineMask`
 
+```slang
+var lineMask = 1 - saturate(lineDist /
+	(fwidth(in.GridCoord) * lineWidth));
+```
+
 This is the tricky one. It's called the line _mask_ because this is what defines the boundary of the line. If it's _one_, the pixel is _on_ the line. If it's _zero_, the pixel is _outside_ the line. Values in between mean it's _near_ the line and that a bit of antialiasing should take place.
 
 Starting from the _inside_ of the `saturate` function:
@@ -382,30 +387,30 @@ Starting from the _inside_ of the `saturate` function:
 lineDist / (fwidth(in.GridCoord) * lineWidth)
 ```
 
-What's going on here? Well, this expression needs to have a _small_ value _near_ the line and a _large_ value _away_ from the line. And `lineDist` already does that. So all that's really needed is to _scale_ `lineDist` by some value and job done.
+What's going on here? Well, this expression needs to have a _small_ value _near_ the line and a _large_ value _away_ from the line (because it'll be subtracted from $1$ to make the _mask_). And `lineDist` already does that. So all that's really needed is to _scale_ `lineDist` by some value and job done.
 
-But these are _lines_. They _shouldn't_ get thinner the farther away they are from the camera, or at glancing angles, so the scale factor needs to take into account the orientation of the surface to the pixel being rendered. So the scaling factor needs to be _larger_ up close (which exaggerates `lineDist` and makes the line seem farther away from the pixel) and _smaller_ in the distance (which does the opposite, shrinking the apparent distances and making more pixels shade as if _inside_ the line).
+But these are _lines_. Their thickness _shouldn't_ vary with distance from the camera or at glancing angles, so the scale factor needs to take into account the orientation of the quad surface to the pixel being rendered. So the scaling factor needs to be _larger_ up close (which exaggerates `lineDist` and makes the line center appear farther away from the current pixel, thus _thinning_ the line when it's right up against the camera) and _smaller_ in the distance (which does the opposite, shrinking the apparent distance to the line and making more pixels shade as if they are inside it).
 
-That scaling factor is produced by borrowing some of the magic silocon that powers texture filtering (specifically, the bit that does the math for mip-selection) and taking the _inverse_ of [`fwidth`](https://shader-slang.org/stdlib-reference/global-decls/fwidth.html). What does `fwidth` do? It calculates an approximate screen-relative derivative of whatever value you pass to it. You can think of it as computing the _difference_ in the given value for _this_ pixel as compared to the same value for (one of) its neighbors (and that's almost certainly exactly how your GPU will actually compute it).
+That scaling factor is produced by borrowing some of the magic silicon that powers texture filtering (specifically, the bit that does the math for mip-selection), [`fwidth`](https://shader-slang.org/stdlib-reference/global-decls/fwidth.html). What does `fwidth` do? It calculates an approximate screen-relative derivative of whatever value you pass to it. You can think of it as computing the _difference_ in the given value for _this_ pixel as compared to the same value for (one of) its neighbors (and that's almost certainly how your GPU will actually compute it).
 
-By taking the screen-space derivative of a smoothly varying value such as `GridCoord` (and really _any_ smoothly varying value would have done, up to a difference of some constant), the shader produces numbers which are _small_ up close and _large_ far away. Why? Well, up close the value changes _less_ from one pixel to the next because the object's all zoomed in. Far away where perspective transformation has made the surface _smaller_, neighboring pixels correspond to surface patches which are farther apart, and thus the value will have changed _more_.
+By taking the screen-space derivative of a smoothly varying value such as `GridCoord` (and really _any_ smoothly varying value would have done, up to a difference of some constant factor), the shader produces numbers which are _small_ up close and _large_ far away. Why? Well, up close the value changes _less_ from one pixel to the next because the object's all zoomed in, so adjacent pixels map to points which are closer together on the surface. Far away where perspective transformation has made the surface render _smaller_, so neighboring pixels correspond to surface patches which are farther apart, and thus the value will have changed _more_.
 
-Multiplying _that_ value by `lineWidth` exaggerates the effect.
+Multiplying _that_ value by `lineWidth` just exaggerates the effect.
 
-But the effect is backwards: `fwidth` is bigger in the back and smaller in front, but I said I want it to be _small_ in the back and _large_ in front. And it needs to vary from front to back not linearly, but in a manner which balances the perspective transformation. So for those reasons, the shader _divides_ by `fwidth`.
+But the effect is backwards: `fwidth` is bigger in the distance and smaller up close when it must be _small_ in the distance and _large_ up close. And it needs to vary over that distance not linearly, but in a manner which cancels out the perspective transformation. So for those reasons, the shader _divides_ by the scaled `fwidth`.
 
-And that's _still_ backwards because the expression is _small_ near the line and _big_ away from it, and the goal is to make a _mask_ which is _bigger_ on the line and _small_ away from it. That's what the rest of the expression is for:
+And that's _still_ backwards because the expression is _small_ near the line and _big_ away from it when the goal is to make a _mask_ which is _bigger_ on the line and _small_ away from it. That's what the rest of the expression is for:
 
 ```slang
 var lineMask = 1 - saturate(lineDist /
 	(fwidth(in.GridCoord) * lineWidth));
 ```
 
-Clamping the value to $[0, 1]$ (which is what `saturate` does) and subtracting it from one then yields the desired mask.
+Clamping the value to $[0, 1]$ (which is what `saturate` does) and subtracting it from $1$ then yields exactly the desired mask.
 
 ### Putting it all together
 
-Almost there, I promise.
+Almost there, I promise. All that's left is to deal with the fact that a pixel can fall on more than one grid line.
 
 ```slang
 var blendFactors = lineMask * lineFog;
