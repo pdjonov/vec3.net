@@ -154,13 +154,13 @@ return out;
 
 The calculation of `out.Position` is just the standard world-to-clip transformation.
 
-Then the shader takes the _world_ position of the plane and scale it so that integer coordinates mark out the grid lines. _That_ value is then offset by half a grid unit so that the grid lines pass where either the `x` or `y` value is $0.5$. Why? Well, it simplifies a bit of math down in the fragment shader, which receives the computed value through `out.GridCoord`.
+Then the shader takes the _world_ position of the plane and scales it so that integer coordinates mark out the grid lines. _That_ value is then offset by half a grid unit so that the grid lines pass where either the `x` or `y` value is $0.5$. Why? Well, it simplifies a bit of math down in the fragment shader, which receives the computed value through `out.GridCoord`.
 
 Finally, the fragment shader will still need the _view_-space coordinates so that it can fog things up correctly.
 
 ## The fragment shader
 
-This shader has a lot more going on, but it's actually just a bunch of simple stuff stacked up in a trenchcoat, pretending to be complex.
+This shader has a lot more going on, but it's actually just a bunch of simple stuff stacked up in a trenchcoat, _pretending_ to be complex.
 
 ```slang
 [shader("fragment")]

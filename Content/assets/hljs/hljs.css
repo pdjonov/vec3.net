@@ -1,5 +1,6 @@
 ﻿.hljs {
     --keyword-color: #569cd6;
+    --built_in-color: #b6e4ff;
     --preprocessor-color: #3d7bad;
     --literal-color: #ccc;
     --special-literal-color: #ddd;
@@ -14,6 +15,7 @@
 @media(prefers-color-scheme: light) {
     .hljs {
         --keyword-color: #0c528b;
+        --built_in-color: #344148;
         --preprocessor-color: #1d4668;
         --literal-color: #565656;
         --special-literal-color: #494141;
@@ -35,6 +37,10 @@
 .hljs-symbol,
 .hljs-type {
     color: var(--keyword-color);
+}
+
+.hljs-built_in {
+    color: var(--built_in-color);
 }
 
 .hljs-link {

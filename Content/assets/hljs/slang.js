@@ -6,14 +6,17 @@
                 // flow control
                 'break continue discard do else for if return while switch case default ' +
                 // declarators
-                'cbuffer class interface namespace typedef var ' +
+                'cbuffer struct class interface namespace typedef var ' +
                 // modifiers
+                'public private internal ' +
+                //properties
+                'property get set ' +
+                //modules
+                'module import ' +
+                //etc
                 'asm asm_fragment centroid row_major column_major const precise export extern groupshared shared static uniform volatile inline in inout out register unsigned ' +
                 'point line lineadj triangle triangleadj packoffset ' +
-                'centroid linear nointerpolation noperspective sample ' +
-                // effects
-                'technique technique10 technique11 compile compile_fragment CompileShader fxgroup pass vertexfragment pixelfragment ' +
-                'ComputeShader DomainShader GeometryShader HullShader PixelShader VertexShader ',
+                'centroid linear nointerpolation noperspective sample ',
             type:
                 'void ' +
 
@@ -91,6 +94,9 @@
 
                 'string ',
             built_in:
+                // SV_*
+                'SV_Barycentrics SV_ClipDistance SV_CullDistance SV_Coverage SV_CullPrimitive SV_Depth SV_DepthGreaterEqual SV_DepthLessEqual SV_DispatchThreadID SV_DomainLocation SV_DrawIndex SV_DeviceIndex SV_FragInvocationCount SV_FragSize SV_GSInstanceID SV_GroupID SV_GroupIndex SV_GroupThreadID SV_InnerCoverage SV_InsideTessFactor SV_InstanceID SV_IntersectionAttributes SV_IsFrontFace SV_OutputControlPointID SV_PointSize SV_PointCoord SV_Position SV_PrimitiveID SV_RenderTargetArrayIndex SV_SampleIndex SV_ShadingRate SV_StartVertexLocation SV_StartInstanceLocation SV_StencilRef SV_TessFactor SV_VertexID SV_ViewID SV_ViewportArrayIndex SV_VulkanInstanceID SV_VulkanSamplePosition SV_VulkanVertexID ' +
+                'SV_Target SV_Target0 SV_Target1 SV_Target2 SV_Target3 SV_Target4 SV_Target5 SV_Target6 SV_Target7 ' +
                 // types
                 'InputPatch OutputPatch ' +
                 'BlendState ConsumeStructuredBuffer DepthStencilState DepthStencilView RasterizerState RenderTargetView SamplerState SamplerComparisonState ' +
