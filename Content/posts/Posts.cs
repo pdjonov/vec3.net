@@ -12,7 +12,6 @@ public class PostFrontMatter : IFrontMatter
 	public string? Permalink { get; set; } //IFrontMatter.Permalink
 	public DateTime Date;
 	public TimeSpan Time; //only used when multiple posts share a date
-	public bool Draft;
 	public DateTime[]? Updated;
 	public string Author = "phill";
 	public string? Series;
@@ -77,7 +76,7 @@ public static class Posts
 		return
 			from it in content.WhereSourcePathMatches("/posts/*.md")
 			let ret = (Page: it as MarkdownPage, FrontMatter: it.FrontMatter as PostFrontMatter)
-			where ret.Page != null && ret.FrontMatter != null && !ret.FrontMatter.Draft
+			where ret.Page != null && ret.FrontMatter != null && !string.IsNullOrWhiteSpace(ret.Page.OutputPath)
 			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
 			select ret;
 	}

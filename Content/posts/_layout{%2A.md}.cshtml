@@ -20,7 +20,7 @@
 	}
 
 	<div class="post-tags">
-		@foreach (var tag in frontMatter.Tags ?? Array.Empty<string>())
+		@foreach (var tag in (frontMatter.Tags ?? Array.Empty<string>()).Order())
 		{
 			<a href="@Posts.TagUrl(tag)" class="post-tag badge">@tag</a>
 		}

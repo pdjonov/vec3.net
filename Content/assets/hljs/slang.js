@@ -6,7 +6,7 @@
                 // flow control
                 'break continue discard do else for if return while switch case default ' +
                 // declarators
-                'cbuffer class interface namespace typedef ' +
+                'cbuffer class interface namespace typedef var ' +
                 // modifiers
                 'asm asm_fragment centroid row_major column_major const precise export extern groupshared shared static uniform volatile inline in inout out register unsigned ' +
                 'point line lineadj triangle triangleadj packoffset ' +

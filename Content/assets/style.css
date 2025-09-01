@@ -206,6 +206,9 @@ a:hover {
     max-width: 40vw;
     height: auto;
 }
+.caption-box.aligncenter img {
+    max-width: 100%;
+}
 
 .alert {
     border-radius: 8px;
