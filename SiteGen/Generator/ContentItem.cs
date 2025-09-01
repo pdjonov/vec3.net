@@ -202,12 +202,24 @@ public abstract class FileContentItem : ContentItem
 	}
 }
 
-public interface IHtmlContent
+public interface IContent
+{
+	ContentOrigin Origin { get; }
+	Project Project { get; }
+}
+
+public interface IHtmlLiteral
 {
 	string Content { get; }
 }
 
-public interface IPage
+public interface IHtmlContent : IContent, IHtmlLiteral
+{
+	Task<string> GetBlurb() => Task.FromResult("");
+	Task<string> GetBlurbText() => Task.FromResult("");
+}
+
+public interface IPage : IContent
 {
 	string? Title { get; }
 }
@@ -229,4 +241,22 @@ public static class ContentItemExtensions
 			it.Origin is InputFile inFile &&
 			matcher.Match(inFile.ContentRelativePath.Substring(1)).HasMatches);
 	}
+}
+
+public readonly struct HtmlLiteral : IHtmlLiteral
+{
+	private readonly string content;
+
+	public static HtmlLiteral Null => default;
+	public bool IsNull => content == null;
+
+	public static HtmlLiteral Empty => new("");
+	public bool IsEmpty => content == "";
+
+	public bool IsNullOrEmpty => string.IsNullOrEmpty(content);
+
+	public string Content => content ?? throw new InvalidOperationException();
+
+	public static HtmlLiteral Create(string? content) => content != null ? new(content) : default;
+	private HtmlLiteral(string content) => this.content = content ?? throw new ArgumentNullException(nameof(content));
 }

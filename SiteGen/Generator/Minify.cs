@@ -44,6 +44,14 @@ public static class Minify
 		return Task.FromResult(res.Code);
 	}
 
+	public static async Task<HtmlLiteral> Html(HtmlLiteral content)
+	{
+		if (content.IsNull)
+			throw new ArgumentNullException(nameof(content));
+
+		return HtmlLiteral.Create(await Html(content.Content));
+	}
+
 	public static async Task<string> Html(string content)
 	{
 		ArgumentNullException.ThrowIfNull(content);

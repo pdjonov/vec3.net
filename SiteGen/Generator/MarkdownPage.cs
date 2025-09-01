@@ -97,11 +97,9 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 		}
 	}
 
-	protected override Task<string> CoreGenerateContent()
+	protected override Task<HtmlLiteral> CoreGenerateContent()
 	{
 		Debug.Assert(source != null);
-
-		var html = Markdown.ToHtml(source, Project.MarkdownPipeline);
-		return Task.FromResult(html);
+		return Project.RenderMarkdown(source);
 	}
 }

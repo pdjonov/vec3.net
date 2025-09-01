@@ -30,17 +30,17 @@ partial class Project
 		return Task.FromResult(ret);
 	}
 
-	public Task<string?> RenderMarkdown(MarkdownDocument? document)
+	public Task<HtmlLiteral> RenderMarkdown(MarkdownDocument? document)
 	{
 		var ret = (string?)null;
 
 		if (document != null)
 			ret = Markdown.ToHtml(document, MarkdownPipeline);
 
-		return Task.FromResult(ret);
+		return Task.FromResult(HtmlLiteral.Create(ret));
 	}
 
-	public Task<string?> RenderMarkdown(string? markdown)
+	public Task<HtmlLiteral> RenderMarkdown(string? markdown)
 	{
 		var ret = (string?)null;
 
@@ -50,7 +50,7 @@ partial class Project
 			ret = Markdown.ToHtml(doc, MarkdownPipeline);
 		}
 
-		return Task.FromResult(ret);
+		return Task.FromResult(HtmlLiteral.Create(ret));
 	}
 
 	public IDeserializer YamlDeserializer { get; } =

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
@@ -14,7 +15,32 @@ public abstract class RazorTemplate : HtmlContentItem
 	protected TextWriter Writer => writer ?? throw new InvalidOperationException();
 	private StringWriter? writer;
 
-	protected void Write(object obj) => Writer.Write(obj);
+	protected void Write(object obj)
+	{
+		if (obj == null)
+			return;
+
+		if (obj is IHtmlLiteral literal)
+		{
+			WriteLiteral(literal.Content);
+			return;
+		}
+
+		var str = obj.ToString();
+		if (str == null)
+			return;
+
+		str = HtmlEncoder.Default.Encode(str);
+
+		Writer.Write(str);
+	}
+	protected void Write(HtmlLiteral literal)
+	{
+		if (literal.IsNullOrEmpty)
+			return;
+
+		WriteLiteral(literal.Content);
+	}
 	protected void WriteLiteral(string literal) => Writer.Write(literal);
 
 	private string? currentAttrSuffix;
@@ -69,18 +95,18 @@ public abstract class RazorTemplate : HtmlContentItem
 
 		writer = null;
 	}
-	private string EndGeneratingContent()
+	private HtmlLiteral EndGeneratingContent()
 	{
 		if (writer == null)
 			throw new InvalidOperationException();
 
 		var ret = writer.ToString();
 		writer = null;
-		return ret;
+		return HtmlLiteral.Create(ret);
 	}
 
 	protected override Task CoreInitialize() => InitializeTemplate();
-	protected override async Task<string> CoreGenerateContent()
+	protected override async Task<HtmlLiteral> CoreGenerateContent()
 	{
 		BeginGeneratingContent();
 		try
@@ -98,7 +124,7 @@ public abstract class RazorTemplate : HtmlContentItem
 	protected void DefineSection(string name, Func<Task> body) => sections.Add(name, body);
 	private readonly Dictionary<string, Func<Task>> sections = new(StringComparer.OrdinalIgnoreCase);
 
-	public virtual Func<Task<string>>? GetSection(string name, bool isRequired = true)
+	public virtual Func<Task<HtmlLiteral>>? GetSection(string name, bool isRequired = true)
 	{
 		ThrowIfNotPrepared();
 
@@ -125,12 +151,13 @@ public abstract class RazorTemplate : HtmlContentItem
 		};
 	}
 
-	protected string? RenderRaw(string? html) => html;
+	protected HtmlLiteral RenderRaw(string? html) => HtmlLiteral.Create(html);
+	protected HtmlLiteral RenderRaw(HtmlLiteral html) => html;
 
-	protected Task<string?> RenderMarkdown(string? markdown)
+	protected Task<HtmlLiteral> RenderMarkdown(string? markdown)
 		=> Project.RenderMarkdown(markdown);
 
-	protected Task<string> RenderPartial(string path, object? model = null)
+	protected Task<IHtmlLiteral> RenderPartial(string path, object? model = null)
 	{
 		return Path.GetExtension(path) switch
 		{
@@ -139,15 +166,15 @@ public abstract class RazorTemplate : HtmlContentItem
 			_ => throw new NotSupportedException(),
 		};
 
-		async Task<string> RenderMarkdownPartial()
+		async Task<IHtmlLiteral> RenderMarkdownPartial()
 		{
 			var source = await LoadText(path);
 			var ret = await Project.RenderMarkdown(source);
-			Debug.Assert(ret != null);
+			Debug.Assert(!ret.IsNull);
 			return ret;
 		}
 
-		async Task<string> RenderRazorPartial()
+		async Task<IHtmlLiteral> RenderRazorPartial()
 		{
 			var inFile = TryGetInputFile(path);
 			if (inFile == null)
@@ -158,7 +185,7 @@ public abstract class RazorTemplate : HtmlContentItem
 			await part.Initialize();
 			await part.PrepareContent();
 
-			return part.Content;
+			return part;
 		}
 	}
 
@@ -252,8 +279,18 @@ public abstract class RazorLayout : RazorTemplate
 	protected RazorLayout(InputFile origin) : base(origin) { }
 
 	public IHtmlContent? Body { get; set; }
+	public IHtmlContent? InnermostBody
+	{
+		get
+		{
+			var ret = (IHtmlContent)this;
+			while (ret is RazorLayout layout)
+				ret = layout.Body;
+			return ret;
+		}
+	}
 
-	public override Func<Task<string>>? GetSection(string name, bool isRequired = true)
+	public override Func<Task<HtmlLiteral>>? GetSection(string name, bool isRequired = true)
 	{
 		var ret = base.GetSection(name, isRequired: false);
 		if (ret == null && Body is RazorTemplate razorBody)
@@ -265,27 +302,38 @@ public abstract class RazorLayout : RazorTemplate
 		return ret;
 	}
 
-	protected Task<string> RenderSection(string name, bool required = true)
+	protected Task<HtmlLiteral> RenderSection(string name, bool required = true)
 	{
 		if (Body is not RazorTemplate body)
 		{
 			if (required)
 				throw new KeyNotFoundException($"Required section '{name}' is not defined and cannot be because the body is not a Razor page.");
 
-			return Task.FromResult("");
+			return Task.FromResult(HtmlLiteral.Empty);
 		}
 
 		var section = body.GetSection(name, required);
 		if (section == null)
 		{
 			Debug.Assert(!required);
-			return Task.FromResult("");
+			return Task.FromResult(HtmlLiteral.Empty);
 		}
 
 		return section();
 	}
 
-	protected Task<string> RenderBody() => Task.FromResult(Body?.Content ?? "");
+	protected async Task<IHtmlLiteral> RenderBody()
+	{
+		var body = Body;
+
+		if (body == null)
+			return HtmlLiteral.Empty;
+
+		if (body is ContentItem item)
+			await item.PrepareContent();
+
+		return body;
+	}
 
 	protected string? GetTitle()
 	{
@@ -310,6 +358,8 @@ public abstract class RazorPartial : RazorTemplate
 	}
 
 	public object? Model { get; }
+
+	protected override Task<HtmlLiteral> GenerateBlurb(HtmlLiteral content) => Task.FromResult(HtmlLiteral.Empty);
 
 	protected override Task CoreWriteContent(Stream outStream, string outputPath)
 		=> throw new NotSupportedException();

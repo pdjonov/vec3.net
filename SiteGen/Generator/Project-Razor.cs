@@ -462,6 +462,8 @@ partial class Project
 		FindFrontMatterTypes();
 	}
 
+	private static readonly CSharpParseOptions csParseOptions = new(preprocessorSymbols: ["DEBUG"]);
+
 	private static CSharpSyntaxTree ParseCSharpSource(string path, CancellationToken cancellationToken = default)
 	{
 		using var reader = new StreamReader(path, detectEncodingFromByteOrderMarks: true);
@@ -469,6 +471,7 @@ partial class Project
 		return (CSharpSyntaxTree)CSharpSyntaxTree.ParseText(sourceText,
 			path: path,
 			encoding: reader.CurrentEncoding,
+			options: csParseOptions,
 			cancellationToken: cancellationToken);
 	}
 
@@ -569,7 +572,7 @@ partial class Project
 		return (T)info.Create(additionalArgs);
 	}
 
-	public async Task<string> ApplyLayout(HtmlContentItem content)
+	public async Task<HtmlLiteral> ApplyLayout(HtmlContentItem content)
 	{
 		ArgumentNullException.ThrowIfNull(content);
 
@@ -797,7 +800,7 @@ partial class Project
 			var compilation = CSharpCompilation.Create(
 				assemblyName: assemblyName,
 				syntaxTrees: [
-					CSharpSyntaxTree.ParseText(source, path: csSourcePath, encoding: Encoding.UTF8),
+					CSharpSyntaxTree.ParseText(source, path: csSourcePath, encoding: Encoding.UTF8, options: csParseOptions),
 					CreateGlobalUsingsSource(
 						"System",
 						"System.Collections.Generic",

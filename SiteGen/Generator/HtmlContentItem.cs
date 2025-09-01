@@ -5,9 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-using AngleSharp;
 using AngleSharp.Dom;
-using AngleSharp.Html;
 using AngleSharp.Html.Dom;
 using AngleSharp.Html.Parser;
 
@@ -17,12 +15,31 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 {
 	protected HtmlContentItem(InputFile origin) : base(origin) { }
 
-	protected abstract Task<string> CoreGenerateContent();
+	protected abstract Task<HtmlLiteral> CoreGenerateContent();
 
 	protected override async Task CorePrepareContent()
 	{
-		Debug.Assert(content == null);
-		content = await CoreGenerateContent() ?? "";
+		Debug.Assert(content.IsNull);
+		content = await CoreGenerateContent();
+
+		blurb = await GenerateBlurb(content);
+
+		if (!blurb.IsNullOrEmpty)
+		{
+			var blurbElems = new HtmlParser().ParseFragment(blurb.Content, null!);
+			blurbText = string.Concat(blurbElems.Select(e => e.Text()));
+		}
+		else
+		{
+			blurb = HtmlLiteral.Empty;
+			blurbText = "";
+		}
+	}
+
+	protected virtual async Task<HtmlLiteral> GenerateBlurb(HtmlLiteral content)
+	{
+		if (content.IsNullOrEmpty)
+			return HtmlLiteral.Empty;
 
 		var parser = new HtmlParser(
 			new HtmlParserOptions()
@@ -30,7 +47,18 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 				SkipComments = false,
 			});
 
-		var dom = await parser.ParseDocumentAsync(content);
+		var dom = await parser.ParseDocumentAsync(content.Content);
+
+		var noblurbCommentFinder = dom.CreateTreeWalker(dom, FilterSettings.Comment,
+			(node) =>
+			{
+				var marker = ((IComment)node).NodeValue.AsSpan().Trim();
+				return marker.Equals("no-blurb", StringComparison.OrdinalIgnoreCase) ?
+					FilterResult.Accept :
+					FilterResult.Reject;
+			});
+		if (noblurbCommentFinder.ToNext() != null)
+			return HtmlLiteral.Empty;
 
 		var blurbCommentFinder = dom.CreateTreeWalker(dom, FilterSettings.Comment,
 			(node) =>
@@ -77,42 +105,56 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 				it = it.NextSibling;
 			}
 
-			blurb = blurbBuilder.ToString();
+			return HtmlLiteral.Create(blurbBuilder.ToString());
 		}
 		else if (dom.GetElementsByTagName("p").FirstOrDefault() is IHtmlParagraphElement firstPara)
 		{
-			blurb = firstPara.OuterHtml;
+			return HtmlLiteral.Create(firstPara.OuterHtml);
 		}
+
+		return HtmlLiteral.Empty;
 	}
 
-	private string? content;
-	public string Content
+	private HtmlLiteral content;
+	public HtmlLiteral Content
 	{
 		get
 		{
 			ThrowIfNotPrepared();
-			Debug.Assert(content != null);
+			Debug.Assert(!content.IsNull);
 			return content;
 		}
 	}
+	string IHtmlLiteral.Content => Content.Content;
 
-	private string? blurb;
-	public async Task<string> GetBlurb()
+	private HtmlLiteral blurb;
+	public async Task<HtmlLiteral> GetBlurb()
 	{
 		ThrowIfNotInitialized();
 
 		await PrepareContent();
-		Debug.Assert(blurb != null);
+		Debug.Assert(!blurb.IsNull);
 
 		return blurb;
 	}
 
+	private string? blurbText;
+	public async Task<string> GetBlurbText()
+	{
+		ThrowIfNotInitialized();
+
+		await PrepareContent();
+		Debug.Assert(blurbText != null);
+
+		return blurbText;
+	}
+
 	protected virtual bool ShouldApplyLayout => OutputPath != null;
 
-	private Task<string>? postProcessTask;
-	private async Task<string> PostProcess()
+	private Task<HtmlLiteral>? postProcessTask;
+	private async Task<HtmlLiteral> PostProcess()
 	{
-		Debug.Assert(this.content != null);
+		Debug.Assert(!this.content.IsNull);
 
 		var content = ShouldApplyLayout ?
 			await Project.ApplyLayout(this) :
@@ -136,7 +178,7 @@ public abstract class HtmlContentItem : FileContentItem, IHtmlContent
 			postProcessTask ??= Task.Run(PostProcess);
 
 		var writer = new StreamWriter(outStream);
-		await writer.WriteAsync(await postProcessTask);
+		await writer.WriteAsync((await postProcessTask).Content);
 		await writer.FlushAsync();
 	}
 }
