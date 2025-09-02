@@ -13,6 +13,15 @@
 	var blurbText = (await InnermostBody.GetBlurbText()).NullIfEmpty();
 
 	var features = Site.GetPageFeatures(await GetBodyDom());
+
+	var date = DateTime.Now;
+	var mdPath = "";
+
+	if (InnermostBody is MarkdownPage mdPage)
+		mdPath = mdPage.ContentRelativePath.TrimLeadingSlash();
+
+	if (isPost)
+		date = ((PostFrontMatter)InnermostBody.FrontMatter).Date;
 }
 
 <!DOCTYPE html>
@@ -102,13 +111,12 @@
 </head>
 
 <body>
-	<div class="top-row">
+	<div class="header">
 		<a class="title" href="/">
 			<h1 class="site-title">
-				<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor"
-					style="height:0.75em;margin-right: -0.25em;">
-					<path
-						d="M480-654Zm174 174Zm-348 0Zm174 174Zm0-234L360-660v-220h240v220L480-540Zm180 180L540-480l120-120h220v240H660Zm-580 0v-240h220l120 120-120 120H80ZM360-80v-220l120-120 120 120v220H360Zm120-574 40-40v-106h-80v106l40 40ZM160-440h106l40-40-40-40H160v80Zm280 280h80v-106l-40-40-40 40v106Zm254-280h106v-80H694l-40 40 40 40Z" />
+				@* inline because fill=currentColor doesn't work otherwise *@
+				<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" style="height:0.75em;margin-right: -0.25em;" viewBox="0 -960 960 960">
+					<path d="M480-654Zm174 174Zm-348 0Zm174 174Zm0-234L360-660v-220h240v220L480-540Zm180 180L540-480l120-120h220v240H660Zm-580 0v-240h220l120 120-120 120H80ZM360-80v-220l120-120 120 120v220H360Zm120-574 40-40v-106h-80v106l40 40ZM160-440h106l40-40-40-40H160v80Zm280 280h80v-106l-40-40-40 40v106Zm254-280h106v-80H694l-40 40 40 40Z" />
 				</svg>
 				@SiteTitle
 			</h1>
@@ -123,6 +131,29 @@
 
 	<div class="content">
 		@await RenderBody()
+	</div>
+
+	<div class="footer">
+		<div>
+			<button title="Scroll to top" class="scroll-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">
+				@* inline because fill=currentColor doesn't work otherwise *@
+				<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 -960 960 960">
+					<path d="M480-654Zm174 174Zm-348 0Zm174 174Zm0-234L360-660v-220h240v220L480-540Zm180 180L540-480l120-120h220v240H660Zm-580 0v-240h220l120 120-120 120H80ZM360-80v-220l120-120 120 120v220H360Zm120-574 40-40v-106h-80v106l40 40ZM160-440h106l40-40-40-40H160v80Zm280 280h80v-106l-40-40-40 40v106Zm254-280h106v-80H694l-40 40 40 40Z" />
+				</svg>
+			</button>
+			<p class="site-link">
+				This is a static website powered by its own <a href="https://github.com/pdjonov/vec3.net">open-source generator</a>.
+			</p>
+			@if (!string.IsNullOrWhiteSpace(mdPath))
+			{
+				<p class="md-page-link">
+					To see an example (or to report errors), check out <a href="https://github.com/pdjonov/vec3.net/blob/master/Content/@mdPath">this post's source</a>.
+				</p>
+			}
+			<p>
+				<span class="copyright">© @(date.Year) Philip Djonov</span>
+			</p>
+		</div>
 	</div>
 
 	@* highlightjs *@

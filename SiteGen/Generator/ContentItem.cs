@@ -205,7 +205,9 @@ public abstract class FileContentItem : ContentItem
 public interface IContent
 {
 	ContentOrigin Origin { get; }
-	Project Project { get; }
+	Project Project { get => Origin.Project; }
+
+	object? FrontMatter { get; }
 }
 
 public interface IHtmlLiteral

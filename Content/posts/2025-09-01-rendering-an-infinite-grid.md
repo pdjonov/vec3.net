@@ -12,7 +12,7 @@ I've been working on a little VR project for a while, and one of the first thing
 
 <div class="caption-box aligncenter">
   <img src="/assets/img/liminal-plane.webp" alt="An infinite floor plane." />
-  <em>Un-limited <s>powah</s> grid!</em>
+  <em>Un-limited <s>powah!</s> grid.</em>
 </div>
 
 Read on to find out _exactly_ how that image is rendered.

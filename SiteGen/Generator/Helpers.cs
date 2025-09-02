@@ -17,13 +17,6 @@ namespace Vec3.Site.Generator;
 
 internal static class Helpers
 {
-	public static string TrimSuffix(this string str, string suffix)
-	{
-		if (str.EndsWith(suffix))
-			str = str.Substring(0, str.Length - suffix.Length);
-		return str;
-	}
-
 	public static string FullNameWithoutGenericTag(this Type type)
 	{
 		var ret = type.FullName!;
@@ -243,6 +236,29 @@ internal static class Helpers
 
 public static class PageHelpers
 {
+	public static string TrimPrefix(this string str, string prefix)
+	{
+		ArgumentNullException.ThrowIfNull(str);
+		ArgumentNullException.ThrowIfNull(prefix);
+
+		if (str.StartsWith(prefix))
+			str = str.Substring(prefix.Length);
+		return str;
+	}
+
+	public static string TrimSuffix(this string str, string suffix)
+	{
+		ArgumentNullException.ThrowIfNull(str);
+		ArgumentNullException.ThrowIfNull(suffix);
+
+		if (str.EndsWith(suffix))
+			str = str.Substring(0, str.Length - suffix.Length);
+		return str;
+	}
+
+	public static string TrimLeadingSlash(this string str) => TrimPrefix(str, "/");
+	public static string TrimTrailingSlash(this string str) => TrimSuffix(str, "/");
+
 	public static void Deconstruct<K, T>(this IGrouping<K, T> group, out K key, out IEnumerable<T> values)
 	{
 		key = group.Key;
