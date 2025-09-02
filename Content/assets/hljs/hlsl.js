@@ -1,4 +1,4 @@
-﻿function hljsDefineHlsl(hljs) {
+function hljsDefineHlsl(hljs) {
     return {
         name: 'HLSL',
         keywords: {

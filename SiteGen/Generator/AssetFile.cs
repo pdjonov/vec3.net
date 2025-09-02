@@ -47,7 +47,8 @@ public class AssetFile(InputFile origin) : FileContentItem(origin)
 				//ToDo: log this
 			}
 
-			Console.WriteLine($"Minified '{ContentRelativePath}': {oldLen} -> {content.Length}");
+			if (oldLen != content.Length)
+				Console.WriteLine($"Minified '{ContentRelativePath}': {oldLen} -> {content.Length}");
 		}
 
 		processedContent = content;

@@ -1,4 +1,4 @@
-﻿function hljsDefineSlang(hljs) {
+function hljsDefineSlang(hljs) {
     return {
         name: 'Slang',
         keywords: {
