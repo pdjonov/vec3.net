@@ -67,6 +67,26 @@ public class Note
 	public string Text;
 }
 
+/// <summary>
+/// Just a convenience to wrap the results of posts queries in something more strongly typed.
+/// </summary>
+public readonly struct PostContent
+{
+	internal PostContent(MarkdownPage page)
+	{
+		this.Page = page;
+	}
+
+	public MarkdownPage Page { get; }
+	public PostFrontMatter FrontMatter => (PostFrontMatter)Page.FrontMatter;
+
+	public void Deconstruct(out MarkdownPage page, out PostFrontMatter frontMatter)
+	{
+		page = Page;
+		frontMatter = FrontMatter;
+	}
+}
+
 public static class Posts
 {
 	public static readonly int ExcerptsPerListing = 50;
@@ -77,17 +97,17 @@ public static class Posts
 		return allPosts.Any(p => p.Page == item);
 	}
 
-	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> GetPosts(this IEnumerable<ContentItem> content)
+	public static IEnumerable<PostContent> GetPosts(this IEnumerable<ContentItem> content)
 	{
 		return
 			from it in content.WhereSourcePathMatches("/posts/*.md")
 			let ret = (Page: it as MarkdownPage, FrontMatter: it.FrontMatter as PostFrontMatter)
 			where ret.Page != null && ret.FrontMatter != null && !string.IsNullOrWhiteSpace(ret.Page.OutputPath)
 			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
-			select ret;
+			select new PostContent(ret.Page);
 	}
 
-	public static IEnumerable<IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)>> ByTag(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts)
+	public static IEnumerable<IGrouping<string, PostContent>> ByTag(this IEnumerable<PostContent> posts)
 	{
 		return
 			from p in posts
@@ -96,7 +116,7 @@ public static class Posts
 			group p by t;
 	}
 
-	public static IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> ByTag(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts, string tag)
+	public static IEnumerable<PostContent> ByTag(this IEnumerable<PostContent> posts, string tag)
 	{
 		return
 			from p in posts
@@ -104,7 +124,7 @@ public static class Posts
 			select p;
 	}
 
-	public static IEnumerable<IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)>> BySeries(this IEnumerable<(MarkdownPage Page, PostFrontMatter FrontMatter)> posts)
+	public static IEnumerable<IGrouping<string, PostContent>> BySeries(this IEnumerable<PostContent> posts)
 	{
 		return
 			from p in posts
@@ -112,7 +132,7 @@ public static class Posts
 			group p by p.FrontMatter.Series;
 	}
 
-	public static string SeriesTitle(IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)> series)
+	public static string SeriesTitle(IGrouping<string, PostContent> series)
 	{
 		var ret = (string?)null;
 		foreach (var p in series)
@@ -129,6 +149,8 @@ public static class Posts
 
 		return ret ?? series.Key;
 	}
+
+	//public static IEnumerable<>
 
 	public static string TagPath(string tag)
 	{

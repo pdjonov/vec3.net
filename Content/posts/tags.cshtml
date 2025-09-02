@@ -1,6 +1,6 @@
 @page
 
-@enumerate IGrouping<string, (MarkdownPage Page, PostFrontMatter FrontMatter)> Tag
+@enumerate IGrouping<string, PostContent> Tag
 {
 	Items = Project.Content.GetPosts().ByTag();
 	OutputPath = t => Posts.TagPath(t.Key);
