@@ -253,6 +253,7 @@ a:hover {
     padding: 0;
     display: table;
     background: var(--panel-background-color);
+    border-radius: 8px;
 }
 .caption-box > :not(:first-child) {
     display: table-caption;
@@ -263,6 +264,7 @@ a:hover {
 .caption-box img {
     max-width: 40vw;
     height: auto;
+    border-radius: 8px;
 }
 .caption-box.aligncenter img {
     max-width: 100%;
