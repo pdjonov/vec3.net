@@ -39,6 +39,12 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 
 		OutputPath = Path.ChangeExtension(ContentRelativePath, Path.GetFileNameWithoutExtension(ContentRelativePath) == "index" ? ".html" : null);
 
+		var frontMatterType = Project.GetFrontMatterTypeFor(Origin);
+
+		var frontMatter = (object?)null;
+		var permalink = (string?)null;
+		var title = (string?)null;
+
 		var frontMatterYamlBlock = source.
 			Descendants<YamlFrontMatterBlock>().
 			FirstOrDefault();
@@ -50,25 +56,8 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 
 			var yamlText = yamlSourceSpan.ToString();
 
-			var frontMatter = (object?)null;
-			var permalink = (string?)null;
-			var title = (string?)null;
-
-			var frontMatterType = Project.GetFrontMatterTypeFor(Origin);
 			if (frontMatterType != null)
-			{
-				var des = Project.YamlDeserializer.Deserialize(yamlText, frontMatterType);
-
-				if (des is IFrontMatter asFrontMatter)
-				{
-					asFrontMatter.Populate(this);
-
-					permalink = asFrontMatter.Permalink;
-					title = asFrontMatter.Title;
-				}
-
-				frontMatter = des;
-			}
+				frontMatter = Project.YamlDeserializer.Deserialize(yamlText, frontMatterType);
 
 			if (frontMatter == null || permalink == null || title == null)
 			{
@@ -89,12 +78,24 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 					titleNode is YamlScalarNode typedTitleNode)
 					title = typedTitleNode.Value;
 			}
-
-			if (!string.IsNullOrEmpty(permalink))
-				OutputPath = Helpers.CombineContentRelativePaths(Helpers.RemoveLastPathSegment(Origin.ContentRelativePath)!, permalink);
-			this.FrontMatter = frontMatter;
-			this.Title = title;
 		}
+		else if (frontMatterType != null)
+		{
+			frontMatter = Activator.CreateInstance(frontMatterType);
+		}
+
+		if (frontMatter is IFrontMatter asFrontMatter)
+		{
+			asFrontMatter.Populate(this);
+
+			permalink = asFrontMatter.Permalink;
+			title = asFrontMatter.Title;
+		}
+
+		if (!string.IsNullOrEmpty(permalink))
+			OutputPath = Helpers.CombineContentRelativePaths(Helpers.RemoveLastPathSegment(Origin.ContentRelativePath)!, permalink);
+		this.FrontMatter = frontMatter;
+		this.Title = title;
 	}
 
 	protected override Task<HtmlLiteral> CoreGenerateContent()
