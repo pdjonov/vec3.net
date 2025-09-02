@@ -376,6 +376,9 @@ public static class PageHelpers
 		return false;
 	}
 
+	public static bool IsJavaScript(this INode maybeScript, bool alsoCheckOldTypes = true)
+		=> maybeScript is IHtmlScriptElement script && IsJavaScript(script, alsoCheckOldTypes: alsoCheckOldTypes);
+
 	public static bool IsJavaScript(this IHtmlScriptElement script, bool alsoCheckOldTypes = true)
 	{
 		ArgumentNullException.ThrowIfNull(script);

@@ -65,7 +65,8 @@ public static class Minify
 		var dom = await parser.ParseDocumentAsync(content);
 
 		foreach (var s in dom.GetElementsByTagName("script"))
-			s.TextContent = await Minify.JavaScript(s.TextContent);
+			if (s.IsJavaScript())
+				s.TextContent = await Minify.JavaScript(s.TextContent);
 
 		foreach (var s in dom.GetElementsByTagName("style"))
 			s.TextContent = await Minify.Css(s.TextContent);
