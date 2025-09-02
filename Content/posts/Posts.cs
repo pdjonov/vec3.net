@@ -225,7 +225,7 @@ public static class Posts
 			select p;
 	}
 
-	public static string SeriesTitle(this IEnumerable<PostContent> posts)
+public static string SeriesTitle(this IEnumerable<PostContent> posts)
 	{
 		var series = (string?)null;
 		var title = (string?)null;

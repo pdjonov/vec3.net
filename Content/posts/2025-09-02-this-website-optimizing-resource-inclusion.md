@@ -1,5 +1,5 @@
 ---
-title: "This Website: Optimizing Script Usage"
+title: "This Website: Optimizing Resource Inclusion"
 series: this-website
 tags:
   - web

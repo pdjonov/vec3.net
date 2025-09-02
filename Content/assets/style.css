@@ -467,3 +467,8 @@ a.badge.post-tag:hover {
     margin: 1em 0;
     padding: 1em;
 }
+
+.content .series-prev a.series-title,
+.content .series-next a.series-title {
+    font-style: italic;
+}

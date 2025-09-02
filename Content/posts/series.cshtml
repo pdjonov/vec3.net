@@ -16,13 +16,8 @@
 <h1>@Series.SeriesTitle()</h1>
 
 <div class="post-list">
-	@{ var count = 0; }
-	@foreach (var post in Series)
+	@foreach (var post in Series.Reverse())
 	{
-		@await RenderPartial(
-			++count <= Posts.ExcerptsPerListing ?
-				"_listitemwithexcerpt.cshtml" :
-				"_listitem.cshtml",
-			post.Page)
+		@await RenderPartial("_listitemwithexcerpt.cshtml", post.Page)
 	}
 </div>

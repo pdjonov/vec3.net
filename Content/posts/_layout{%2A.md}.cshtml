@@ -42,7 +42,7 @@
 @if (!series.IsEmpty)
 {
 	<div class="series-prev">
-		This post is part of the series: <a href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
+		This post is part of the series <a class="series-title" href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
 		@if (series.HasPrevious)
 		{
 			<text>It follows <a href="@UrlTo(series.Previous.Page)">@series.Previous.PageTitle</a>.</text>
@@ -55,7 +55,7 @@
 @if (!series.IsEmpty)
 {
 	<div class="series-next">
-		This post is part of the series: <a href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
+		This post is part of the series <a class="series-title" href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
 		@if (series.HasNext)
 		{
 			<text>The next part is <a href="@UrlTo(series.Next.Page)">@series.Next.PageTitle</a>.</text>
