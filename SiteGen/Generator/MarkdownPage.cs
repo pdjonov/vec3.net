@@ -91,7 +91,7 @@ public class MarkdownPage(InputFile origin) : HtmlContentItem(origin), IPage
 			}
 
 			if (!string.IsNullOrEmpty(permalink))
-				OutputPath = Helpers.CombineContentRelativePaths(Path.GetDirectoryName(Origin.ContentRelativePath)!, permalink);
+				OutputPath = Helpers.CombineContentRelativePaths(Helpers.RemoveLastPathSegment(Origin.ContentRelativePath)!, permalink);
 			this.FrontMatter = frontMatter;
 			this.Title = title;
 		}

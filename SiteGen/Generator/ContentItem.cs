@@ -161,7 +161,7 @@ public abstract class ContentItem
 	{
 		return Helpers.CombineContentRelativePaths(
 			relativeTo: Origin is InputFile inputFileOrigin ?
-				Path.GetDirectoryName(inputFileOrigin.ContentRelativePath)! : "",
+				Helpers.RemoveLastPathSegment(inputFileOrigin.ContentRelativePath)! : "",
 			path: relativePath); ;
 	}
 

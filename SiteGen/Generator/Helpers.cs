@@ -51,6 +51,36 @@ internal static class Helpers
 		return null;
 	}
 
+	public static string NormalizePathSeparators(this string path)
+	{
+		Debug.Assert(path != null);
+		return path.Replace('\\', '/');
+	}
+
+	public static string GetProjectRelativePath(string relativeTo, string path)
+	{
+		Debug.Assert(relativeTo != null);
+		Debug.Assert(path != null);
+
+		return '/' + Path.GetRelativePath(relativeTo, path).NormalizePathSeparators();
+	}
+
+	public static string RemoveLastPathSegment(string path)
+	{
+		Debug.Assert(path != null);
+		Debug.Assert(!path.Contains('\\'));
+		Debug.Assert(!path.EndsWith('/'));
+
+		var lastSep = path.LastIndexOf('/');
+		if (lastSep == -1)
+			return "";
+
+		if (lastSep == 0 && path.Length > 1)
+			return "/";
+
+		return path.Substring(0, lastSep);
+	}
+
 	public static void ValidateRootedPath(string path, bool mustBeNormalized = true, [CallerArgumentExpression(nameof(path))] string paramName = "path")
 	{
 		ValidatePathCore(path, mustBeNormalized: mustBeNormalized, mustNotEscapeRoot: true, paramName: paramName);

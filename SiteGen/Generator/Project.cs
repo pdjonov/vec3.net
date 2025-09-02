@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
@@ -74,8 +75,8 @@ public partial class Project
 					//skip "hidden" and utility dot-files
 					continue;
 
-				var relPath = Path.GetRelativePath(relativeTo: ContentDirectory, f).Replace('\\', '/');
-				var origin = new InputFile(this, contentRelativePath: '/' + relPath);
+				var relPath = Helpers.GetProjectRelativePath(relativeTo: ContentDirectory, f);
+				var origin = new InputFile(this, contentRelativePath: relPath);
 				var item = Path.GetExtension(name) switch
 				{
 					_ when name.StartsWith('_') => null, //layouts, partials, utility files
@@ -175,82 +176,189 @@ public partial class Project
 
 	public async Task<OutputLayout> GenerateOutput()
 	{
-		var ret = new OutputLayout(this);
-
 		//make sure we have a coherent file structure
 
-		var conflictingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var outputItemsByPath = new Dictionary<string, ContentItem>(StringComparer.OrdinalIgnoreCase);
+		var conflictedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		foreach (var f in content)
 			if (f.OutputPath != null)
-				if (!ret.Items.TryAdd(f.OutputPath, f))
-					conflictingPaths.Add(f.OutputPath);
+				if (!outputItemsByPath.TryAdd(f.OutputPath, f))
+					conflictedPaths.Add(f.OutputPath);
 
-		if (conflictingPaths.Count != 0)
-			throw new InvalidDataException("Multiple items are conflicting over the following output paths: " + string.Join(", ", conflictingPaths.Order()));
+		if (conflictedPaths.Count != 0)
+			throw new InvalidDataException("Multiple items are conflicting over the following output paths: " + string.Join(", ", conflictedPaths.Order()));
 
 		//generate the content
 
-		await Task.WhenAll(content.Select(i => i.PrepareContent()));
+		await Task.WhenAll(outputItemsByPath.Values.Select(i => i.PrepareContent()));
 
-		//write the content
+		//track what we're doing in the output
 
-		foreach (var (path, item) in ret.Items)
+		var entriesByPath = new Dictionary<string, OutputLayout.Entry>(StringComparer.OrdinalIgnoreCase);
+
+		//the output directory has to exist before we can try enumerating it
+
+		Directory.CreateDirectory(OutputDirectory);
+		entriesByPath.Add("/", OutputLayout.Entry.ForDirectoryUnchanged("/"));
+
+		//build a map of all the directories we want
+
+		var outputDirectoriesFromContent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var (path, _) in outputItemsByPath)
+			outputDirectoriesFromContent.Add(Helpers.RemoveLastPathSegment(path)!);
+
+		string GetOutputRelativePath(string fullPath) => Helpers.GetProjectRelativePath(relativeTo: OutputDirectory, fullPath);
+
+		//bulid a map of all the directories we have and then exclude the ones we want (to get a map of what we must delete)
+
+		var outputDirectoriesFromInitialFileScan = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		ScanForOutputDirectoriesOnDisk("/");
+		void ScanForOutputDirectoriesOnDisk(string path)
 		{
+			outputDirectoriesFromInitialFileScan.Add(path);
+			foreach (var dir in Directory.EnumerateDirectories(GetFullOutputPath(path)))
+				ScanForOutputDirectoriesOnDisk(GetOutputRelativePath(dir));
+		}
+
+		var directoriesToDelete = new HashSet<string>(outputDirectoriesFromInitialFileScan, StringComparer.OrdinalIgnoreCase);
+		directoriesToDelete.ExceptWith(outputDirectoriesFromContent);
+
+		//delete any directories we don't want kept
+
+		foreach (var remDir in directoriesToDelete.
+			OrderByDescending(d => d.Length)) //a child path can't be shorter than its parent
+		{
+			var fullPath = GetFullOutputPath(remDir);
+
+			foreach (var file in Directory.EnumerateFiles(fullPath))
+			{
+				File.Delete(file);
+
+				var relPath = GetOutputRelativePath(file);
+				entriesByPath.Add(relPath, OutputLayout.Entry.ForFileDeleted(relPath));
+			}
+
+			Directory.Delete(fullPath);
+
+			entriesByPath.Add(remDir, OutputLayout.Entry.ForDirectoryDeleted(remDir));
+		}
+
+		//delete old files from the directories we're keeping
+
+		foreach (var dir in outputDirectoriesFromContent)
+		{
+			if (!outputDirectoriesFromInitialFileScan.Contains(dir))
+				continue;
+
+			foreach (var file in Directory.EnumerateFiles(GetFullOutputPath(dir)))
+			{
+				var relPath = GetOutputRelativePath(file);
+				if (outputItemsByPath.TryGetValue(relPath, out var source))
+				{
+					//speculatively assume the contents won't change (we'll update this later)
+					entriesByPath.Add(relPath, OutputLayout.Entry.ForFileUnchanged(source));
+				}
+				else
+				{
+					File.Delete(file);
+
+					entriesByPath.Add(relPath, OutputLayout.Entry.ForFileDeleted(relPath));
+				}
+			}
+		}
+
+		//write the new content out to disk
+
+		foreach (var (path, item) in outputItemsByPath.
+			OrderBy(p => p.Key.Length)) //child can't have a shorter path than its parent
+		{
+			var dir = Helpers.RemoveLastPathSegment(path)!;
+			if (entriesByPath.TryAdd(dir, OutputLayout.Entry.ForDirectoryUnchanged(dir)))
+			{
+				//first time we're looking at this dir during the writing phase
+				//make sure it's *actually* "unchanged" and not in need of initial creation
+
+				var fullDirectoryPath = GetFullOutputPath(dir);
+				if (!Directory.Exists(fullDirectoryPath))
+				{
+					Directory.CreateDirectory(fullDirectoryPath);
+
+					entriesByPath[dir] = OutputLayout.Entry.ForDirectoryAdded(dir);
+				}
+			}
+
 			var fullPath = GetFullOutputPath(path);
 
-			Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+			var fileAdded = !entriesByPath.ContainsKey(path);
+			var fileChanged = fileAdded;
+			if (fileAdded)
+			{
+				using var outStream = File.OpenWrite(fullPath);
 
-			using var outStream = File.Create(fullPath);
-			await item.WriteContent(outStream, path);
+				await item.WriteContent(outStream, path);
+			}
+			else
+			{
+				//need to do change detection, and avoid touching filestamps without cause
+
+				using var hasher = SHA1.Create(); //if it's good enough for OG git...
+				Debug.Assert(hasher.CanReuseTransform);
+
+				long oldLength;
+				byte[] oldHash;
+				using (var scanStream = File.OpenRead(fullPath))
+				{
+					oldLength = scanStream.Length;
+					oldHash = await hasher.ComputeHashAsync(scanStream);
+				}
+
+				hasher.Initialize();
+
+				Debug.Assert(oldLength < int.MaxValue); // looooooool, if this ever...
+
+				var newData = new MemoryStream(capacity: (int)oldLength); //guess an initial capacity close to the old size
+				var hashStream = new CryptoStream(newData, hasher, CryptoStreamMode.Write);
+
+				await item.WriteContent(hashStream, path);
+				await hashStream.FlushFinalBlockAsync();
+
+				fileChanged =
+					oldLength != newData.Length ||
+					!oldHash.SequenceEqual(hasher.Hash!);
+
+				if (fileChanged)
+				{
+					using var outStream = File.Create(fullPath);
+
+					newData.Position = 0;
+					await newData.CopyToAsync(outStream);
+				}
+			}
+
+			if (fileAdded)
+				entriesByPath.Add(path, OutputLayout.Entry.ForFileAdded(item));
+			else if (fileChanged)
+				entriesByPath[path] = OutputLayout.Entry.ForFileUpdated(item);
+			else
+				Debug.Assert(entriesByPath[path].Action == OutputLayout.Action.Unchanged);
+
+			if (fileAdded || fileChanged)
+			{
+				var dirState = entriesByPath[dir];
+				Debug.Assert(dirState.Action != OutputLayout.Action.Deleted);
+
+				if (dirState.Action == OutputLayout.Action.Unchanged)
+					entriesByPath[dir] = OutputLayout.Entry.ForDirectoryUpdated(dir);
+			}
 		}
 
-		//clean up old files
+		//report what we did
 
-		CleanDirectory("/");
+		var ret = new OutputLayout(this);
 
-		bool CleanDirectory(string dir)
-		{
-			var fullPath = GetFullOutputPath(dir);
-
-			var numFiles = 0;
-
-			var filesToRemove = new List<string>();
-			foreach (var f in Directory.EnumerateFiles(fullPath))
-			{
-				var relPath = '/' + Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: f);
-				numFiles++;
-
-				if (!ret.Items.ContainsKey(relPath))
-					filesToRemove.Add(relPath);
-			}
-
-			foreach (var f in filesToRemove)
-			{
-				File.Delete(GetFullOutputPath(f));
-				ret.OldFilesDeleted.Add(f);
-			}
-
-			var numDirectories = 0;
-
-			var dirsToRemove = new List<string>();
-			foreach (var d in Directory.EnumerateDirectories(fullPath))
-			{
-				var relPath = '/' + Path.GetRelativePath(relativeTo: ret.OutputDirectory, path: d);
-				numDirectories++;
-
-				if (!CleanDirectory(relPath))
-					dirsToRemove.Add(relPath);
-			}
-
-			foreach (var d in dirsToRemove)
-			{
-				Directory.Delete(GetFullOutputPath(d), recursive: false);
-				ret.OldFilesDeleted.Add(d);
-			}
-
-			return numFiles > filesToRemove.Count ||
-				numDirectories > dirsToRemove.Count;
-		}
+		ret.Entries.AddRange(entriesByPath.
+			OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase).
+			Select(e => e.Value));
 
 		return ret;
 	}
@@ -259,13 +367,96 @@ public partial class Project
 public class OutputLayout
 {
 	public Project Project { get; }
-
 	public string ContentDirectory => Project.ContentDirectory;
 	public string OutputDirectory => Project.OutputDirectory;
 
-	public Dictionary<string, ContentItem> Items { get; } = new(StringComparer.OrdinalIgnoreCase);
-	public List<string> OldFilesDeleted { get; } = [];
-	public List<string> OldDirectoriesDeleted { get; } = [];
+	public List<Entry> Entries { get; } = [];
+
+	public readonly struct Entry
+	{
+		/// <summary>
+		/// The path this entry represents.
+		/// </summary>
+		public string Path { get; }
+
+		/// <summary>
+		/// The entry's type.
+		/// </summary>
+		public EntryType Type { get; }
+
+		public bool IsFile => Type == EntryType.File;
+		public bool IsDirectory => Type == EntryType.Directory;
+
+		/// <summary>
+		/// The item which generated the entry.
+		/// </summary>
+		/// <remarks>
+		/// Null for directories and for files which were deleted.
+		/// </remarks>
+		public ContentItem? Source { get; }
+
+		/// <summary>
+		/// What happened to this entry.
+		/// </summary>
+		public Action Action { get; }
+		public bool WasAdded => Action == Action.Added;
+		public bool WasUpdated => Action == Action.Updated;
+		public bool WasUnchanged => Action == Action.Unchanged;
+		public bool WasDeleted => Action == Action.Deleted;
+
+		private Entry(ContentItem source, Action action)
+		{
+			ArgumentNullException.ThrowIfNull(source);
+			if (source.OutputPath == null)
+				throw new ArgumentException(paramName: nameof(source), message: "Entries for output files must come from sources with a non-null OutputPath.");
+			Debug.Assert(action != Action.Deleted);
+
+			Source = source;
+			Path = source.OutputPath;
+			Type = EntryType.File;
+			Action = action;
+		}
+
+		private Entry(string path, EntryType type, Action action)
+		{
+			ArgumentNullException.ThrowIfNull(path);
+			Debug.Assert(type != EntryType.File || action == Action.Deleted); //otherwise must supply Source
+
+			Source = null;
+			Path = path;
+			Type = type;
+			Action = action;
+		}
+
+		public static Entry ForFileAdded(ContentItem source) => new(source, Action.Added);
+		public static Entry ForFileUpdated(ContentItem source) => new(source, Action.Updated);
+		public static Entry ForFileUnchanged(ContentItem source) => new(source, Action.Unchanged);
+		public static Entry ForFileDeleted(string path) => new(path, EntryType.File, Action.Deleted);
+
+		public static Entry ForDirectoryAdded(string path) => new(path, EntryType.Directory, Action.Added);
+		public static Entry ForDirectoryUpdated(string path) => new(path, EntryType.Directory, Action.Updated);
+		public static Entry ForDirectoryUnchanged(string path) => new(path, EntryType.Directory, Action.Unchanged);
+		public static Entry ForDirectoryDeleted(string path) => new(path, EntryType.Directory, Action.Deleted);
+	}
+
+	public enum EntryType
+	{
+		/// <summary>
+		/// A default-initialized <see cref="Entry"/> instance which contains no real data.
+		/// </summary>
+		Invalid,
+
+		File,
+		Directory,
+	}
+
+	public enum Action
+	{
+		Added,
+		Updated,
+		Unchanged,
+		Deleted,
+	}
 
 	internal OutputLayout(Project project)
 	{

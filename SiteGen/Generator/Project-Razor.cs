@@ -172,7 +172,7 @@ partial class Project
 			{
 				RazorTemplateInfo info;
 				lock (project.razorTemplateInfosLock)
-					info = project.razorTemplateInfos[codeDocument.Source.RelativePath];
+					info = project.razorTemplateInfos[codeDocument.Source.RelativePath.Replace('\\', '/')];
 
 				classNode.BaseType = typeof(EnumeratedRazorPage).FullName;
 
@@ -291,7 +291,7 @@ partial class Project
 		{
 			RazorTemplateInfo info;
 			lock (engine.razorTemplateInfosLock)
-				info = engine.razorTemplateInfos[codeDocument.Source.RelativePath];
+				info = engine.razorTemplateInfos[codeDocument.Source.RelativePath.Replace('\\', '/')];
 
 			var namespaceNode = documentNode.FindPrimaryNamespace();
 			namespaceNode.Content = info.Namespace;
@@ -422,7 +422,7 @@ partial class Project
 
 		if (siteSourceTime > siteDllTime)
 		{
-			Console.WriteLine($"Compiling '{Path.GetRelativePath(CacheDirectory, siteAssemblyPath)}'");
+			Console.WriteLine($"Compiling '{Path.GetRelativePath(CacheDirectory, siteAssemblyPath).NormalizePathSeparators()}'");
 
 			var compilation = CSharpCompilation.Create(
 				assemblyName: "site",
@@ -582,13 +582,13 @@ partial class Project
 		var body = content;
 		for (string dir, path = content.ContentRelativePath; path != "/"; path = dir)
 		{
-			dir = Path.GetDirectoryName(path)!;
+			dir = Helpers.RemoveLastPathSegment(path)!;
 
 			var fullDirPath = GetFullContentPath(dir);
 
 			var layout = await GetLayout(
 				fullDirectoryPath: fullDirPath,
-				relPath: Path.GetRelativePath(relativeTo: fullDirPath, fullContentPath));
+				relPath: Path.GetRelativePath(relativeTo: fullDirPath, fullContentPath).NormalizePathSeparators()); //NO leading slash!
 			if (layout == null)
 				continue;
 
@@ -635,7 +635,7 @@ partial class Project
 
 				Debug.Assert(parts.Success);
 
-				var layoutSource = new InputFile(project, '/' + Path.GetRelativePath(project.ContentDirectory, f));
+				var layoutSource = new InputFile(project, Helpers.GetProjectRelativePath(project.ContentDirectory, f));
 				var template = project.GetRazorPageInfo(layoutSource);
 
 				var pattern = parts.Groups["pattern"];
@@ -761,7 +761,7 @@ partial class Project
 				{
 				}
 
-				Console.WriteLine($"Compiling '{file.RelativePhysicalPath}'");
+				Console.WriteLine($"Compiling '{file.RelativePhysicalPath.NormalizePathSeparators()}'");
 
 				assemblyName = $"_{code.Source.GetChecksumAlgorithm()}_{Convert.ToHexString(code.Source.GetChecksum())}";
 

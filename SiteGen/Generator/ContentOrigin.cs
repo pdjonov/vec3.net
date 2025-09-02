@@ -45,5 +45,5 @@ public class EnumeratedTemplateInstance : InputFile
 		Item = item;
 	}
 
-	public override string ToString() => $"{ContentRelativePath}[{Item}]";
+	public override string ToString() => $"{ContentRelativePath}[{Item}]"; //ToDo: figure out how to quickly pretty-print IGrouping<,> (uuuuugh)
 }
