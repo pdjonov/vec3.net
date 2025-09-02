@@ -73,7 +73,7 @@ body>.content {
 
     display: grid;
     width: 100%;
-    grid-template-columns: 1fr minmax(max-content, 1200px) 1fr;
+    grid-template-columns: 1fr minmax(0, 1200px) 1fr;
     grid-template-rows: 1fr max-content;
     align-content: center;
 }
@@ -86,17 +86,19 @@ body>.content {
     align-items: center;
     color: #d0d0d0;
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .header .site-title {
     font-family: Georgia, Verdana, arial, sans-serif;
     font-weight: bold;
-    font-size: clamp(8pt, 8vw, 64pt);
+    font-size: clamp(8pt, 10vw, 64pt);
     margin: 0px;
 }
 .header .site-subtitle {
     font-family: Georgia, Verdana, arial, sans-serif;
-    font-size: clamp(6pt, 2.25vw, 18pt);
-    line-height: 0;
+    font-size: clamp(5.5pt, 2.25vw, 18pt);
     margin: 0px;
     color: #B0B0B0;
 }
@@ -152,7 +154,7 @@ div.footer {
     display: grid;
     width: 100%;
 
-    grid-template-columns: 1fr minmax(max-content, 1200px) 1fr;
+    grid-template-columns: 1fr minmax(0, 1200px) 1fr;
     grid-template-rows: max-content;
     align-content: center;
 
