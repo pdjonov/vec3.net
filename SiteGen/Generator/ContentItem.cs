@@ -9,7 +9,7 @@ using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Vec3.Site.Generator;
 
-public abstract class ContentItem
+public abstract class ContentItem : IContent
 {
 	public ContentOrigin Origin { get; }
 	public Project Project => Origin.Project;
@@ -236,12 +236,13 @@ public interface IEnumeratedContent
 public static class ContentItemExtensions
 {
 	public static IEnumerable<ContentItem> WhereSourcePathMatches(this IEnumerable<ContentItem> items, string? include, string? exclude = null)
-	{
-		var matcher = Helpers.CreateMatcher(include, exclude);
+		=> WhereSourcePathMatches(items, Glob.Create(include: include, exclude: exclude));
 
+	public static IEnumerable<ContentItem> WhereSourcePathMatches(this IEnumerable<ContentItem> items, Glob glob)
+	{
 		return items.Where(it =>
 			it.Origin is InputFile inFile &&
-			matcher.Match(inFile.ContentRelativePath.Substring(1)).HasMatches);
+			glob.IsMatch(inFile.ContentRelativePath));
 	}
 }
 

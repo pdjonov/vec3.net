@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Razor.Language.Intermediate;
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.Extensions.FileSystemGlobbing;
 
 namespace Vec3.Site.Generator;
 
@@ -608,7 +607,7 @@ partial class Project
 
 	private struct DirectoryLayoutTemplates
 	{
-		private (Matcher FilenameMatcher, RazorTemplateInfo Template)[] filteredTemplates;
+		private (Glob FilenameMatcher, RazorTemplateInfo Template)[] filteredTemplates;
 		private RazorTemplateInfo? defaultTemplate;
 
 		public readonly bool IsEmpty => filteredTemplates == null || (filteredTemplates.Length == 0 && defaultTemplate == null);
@@ -617,7 +616,7 @@ partial class Project
 		{
 			if (filteredTemplates != null)
 				foreach (var (m, t) in filteredTemplates)
-					if (m.Match(relPath).HasMatches)
+					if (m.IsMatch(relPath))
 						return t;
 
 			return defaultTemplate;
@@ -627,7 +626,7 @@ partial class Project
 		{
 			var ret = new DirectoryLayoutTemplates();
 
-			var filtered = new List<(Matcher FilenameMatcher, RazorTemplateInfo Template)>();
+			var filtered = new List<(Glob FilenameMatcher, RazorTemplateInfo Template)>();
 
 			foreach (var f in Directory.EnumerateFiles(fullDirectoryPath, "_layout*.cshtml").Order(StringComparer.Ordinal))
 			{
@@ -642,7 +641,7 @@ partial class Project
 				if (pattern.Success)
 				{
 					var glob = Uri.UnescapeDataString(pattern.Value);
-					var matcher = Helpers.CreateMatcher(glob, mustBeAbsolute: false);
+					var matcher = Glob.Create(glob, mustBeAbsolute: false);
 					filtered.Add((matcher, template));
 				}
 				else

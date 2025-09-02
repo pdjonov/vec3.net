@@ -1,6 +1,7 @@
 ---
 title: "Building Content: Just-In-Time Dependency Graphs"
 series: content-builder
+seriestitle: "Writing a Content Build Tool"
 tags:
   - content
   - programming

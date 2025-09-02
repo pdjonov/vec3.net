@@ -2,6 +2,7 @@
 title: "This Website: The Generator"
 time: 13:00
 series: this-website
+seriestitle: "The Making of This Website"
 tags:
   - web
   - C#

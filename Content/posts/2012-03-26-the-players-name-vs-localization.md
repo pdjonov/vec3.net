@@ -1,8 +1,7 @@
 ---
 title: "The Player's Name vs Localization"
 tags:
-  - design
-  - language
+  - localization
 ---
 From a game developer's perspective, the English language is incredibly simple. Our grammar is only minimally [inflected](http://en.wikipedia.org/wiki/Inflection), making it easy to author strings like "_@(PLAYER)_ runs away!" and "Give this to _@(TARGET)_." and use simple text substitution to replace tokens like "_@(TARGET)_" with the name of a player, NPC, or object as needed. There are some places where this doesn't quite work (dealing with numbers and plurals or dialog which might be referring to either males or females), but they're either uncommon or easy to ignore (in many cases it's unlikely the player will have just one of something and we can just use the plural).
 

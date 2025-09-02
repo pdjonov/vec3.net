@@ -1,5 +1,6 @@
 ---
 title: 'GJK (fixed)'
+series: GJK
 tags:
   - code
   - math

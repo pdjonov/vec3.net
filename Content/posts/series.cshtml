@@ -1,0 +1,28 @@
+@page
+
+@enumerate IGrouping<string, PostContent> Series
+{
+	Items = Project.Content.GetPosts().BySeries();
+	OutputPath = t => Posts.SeriesPath(t.Key);
+}
+
+@initialize
+{
+	Title = "Series: " + Series.SeriesTitle();
+}
+
+@SuppressBlurb()
+
+<h1>@Series.SeriesTitle()</h1>
+
+<div class="post-list">
+	@{ var count = 0; }
+	@foreach (var post in Series)
+	{
+		@await RenderPartial(
+			++count <= Posts.ExcerptsPerListing ?
+				"_listitemwithexcerpt.cshtml" :
+				"_listitem.cshtml",
+			post.Page)
+	}
+</div>

@@ -74,37 +74,117 @@ public readonly struct PostContent
 {
 	internal PostContent(MarkdownPage page)
 	{
-		this.Page = page;
+		this.page = page;
 	}
 
-	public MarkdownPage Page { get; }
+	private readonly MarkdownPage page;
+
+	public static PostContent Empty => default;
+	public bool IsEmpty => page == null;
+
+	public MarkdownPage Page => page ?? throw new InvalidOperationException();
 	public PostFrontMatter FrontMatter => (PostFrontMatter)Page.FrontMatter;
+
+	public string PageTitle => Page.Title;
 
 	public void Deconstruct(out MarkdownPage page, out PostFrontMatter frontMatter)
 	{
+		if (IsEmpty)
+			throw new InvalidOperationException();
+
 		page = Page;
 		frontMatter = FrontMatter;
 	}
+
+	public PostOfSeriesInfo FindInSeries()
+	{
+		if (IsEmpty)
+			throw new InvalidOperationException();
+
+		var series = FrontMatter.Series;
+		if (string.IsNullOrEmpty(series))
+			return PostOfSeriesInfo.Empty;
+
+		var postsInSeries = Page.Project.Content.
+			GetPosts().
+			BySeries(series).
+			ToArray();
+
+		var thisPage = Page;
+		var idx = Array.FindIndex(postsInSeries, p => p.Page == thisPage);
+		if (idx == -1)
+			return PostOfSeriesInfo.Empty;
+
+		return new()
+		{
+			Key = series,
+			Title = Posts.SeriesTitle(postsInSeries),
+
+			//Note: postsInSeries is ordered in reverse-chronological order!
+			Previous = idx + 1 < postsInSeries.Length ? postsInSeries[idx + 1] : PostContent.Empty,
+			Next = idx > 0 ? postsInSeries[idx - 1] : PostContent.Empty,
+
+			Index = idx,
+		};
+	}
+}
+
+/// <summary>
+/// Information about a post's participation and location in a series.
+/// </summary>
+public readonly struct PostOfSeriesInfo
+{
+	public static PostOfSeriesInfo Empty => default;
+	public bool IsEmpty => Key == null;
+
+	public string Key { get; init; }
+	public string Title { get; init; }
+
+	public PostContent Previous { get; init; }
+	public bool HasPrevious => !IsEmpty && !Previous.IsEmpty;
+	public PostContent Next { get; init; }
+	public bool HasNext => !IsEmpty && !Next.IsEmpty;
+
+	public int Index { get; init; }
 }
 
 public static class Posts
 {
 	public static readonly int ExcerptsPerListing = 50;
 
-	public static bool IsPost(this IHtmlContent item)
+	private static readonly Glob pathGlob = Glob.Create("/posts/*.md");
+
+	public static PostContent TryGetPostInfo(this IContent item, bool checkSourcePath = true)
 	{
-		var allPosts = item.Project.Content.GetPosts();
-		return allPosts.Any(p => p.Page == item);
+		if (item is not MarkdownPage mdPage || item.FrontMatter is not PostFrontMatter)
+			return PostContent.Empty;
+
+		if (checkSourcePath && !pathGlob.IsMatch(mdPage.ContentRelativePath))
+			return PostContent.Empty;
+
+		if (string.IsNullOrEmpty(mdPage.OutputPath))
+			return PostContent.Empty;
+
+		return new(mdPage);
 	}
+	public static PostContent GetPostInfo(this IContent item, bool checkSourcePath = true)
+	{
+		var ret = TryGetPostInfo(item, checkSourcePath: checkSourcePath);
+		if (ret.IsEmpty)
+			throw new ArgumentException($"The given content item is expected to be a post, but it isn't.");
+		return ret;
+	}
+
+	public static bool IsPost(this IHtmlContent item) => !TryGetPostInfo(item).IsEmpty;
 
 	public static IEnumerable<PostContent> GetPosts(this IEnumerable<ContentItem> content)
 	{
 		return
-			from it in content.WhereSourcePathMatches("/posts/*.md")
-			let ret = (Page: it as MarkdownPage, FrontMatter: it.FrontMatter as PostFrontMatter)
-			where ret.Page != null && ret.FrontMatter != null && !string.IsNullOrWhiteSpace(ret.Page.OutputPath)
-			orderby ret.FrontMatter.Date descending, ret.FrontMatter.Time descending
-			select new PostContent(ret.Page);
+			from it in content.WhereSourcePathMatches(pathGlob)
+			let info = TryGetPostInfo(it, checkSourcePath: false)
+			where !info.IsEmpty
+			orderby info.FrontMatter.Date descending, info.FrontMatter.Time descending
+			select info;
 	}
 
 	public static IEnumerable<IGrouping<string, PostContent>> ByTag(this IEnumerable<PostContent> posts)
@@ -124,6 +204,9 @@ public static class Posts
 			select p;
 	}
 
+	public static string TagPath(string tag) => "/posts/tags/" + tag;
+	public static string TagUrl(string tag) => "/posts/tags/" + Uri.EscapeDataString(tag);
+
 	public static IEnumerable<IGrouping<string, PostContent>> BySeries(this IEnumerable<PostContent> posts)
 	{
 		return
@@ -132,33 +215,49 @@ public static class Posts
 			group p by p.FrontMatter.Series;
 	}
 
-	public static string SeriesTitle(IGrouping<string, PostContent> series)
+	public static IEnumerable<PostContent> BySeries(this IEnumerable<PostContent> posts, string series)
 	{
-		var ret = (string?)null;
-		foreach (var p in series)
+		ArgumentException.ThrowIfNullOrWhiteSpace(series);
+
+		return
+			from p in posts
+			where p.FrontMatter.Series == series
+			select p;
+	}
+
+	public static string SeriesTitle(this IEnumerable<PostContent> posts)
+	{
+		var series = (string?)null;
+		var title = (string?)null;
+
+		foreach (var (_, f) in posts)
 		{
-			var title = p.FrontMatter.SeriesTitle;
-			if (string.IsNullOrWhiteSpace(title))
+			if (string.IsNullOrWhiteSpace(f.Series) ||
+				(series != null && f.Series != series))
+				throw new ArgumentException("All elements of the series enumeration must have valid, matching series keys.");
+
+			series = f.Series;
+
+			var pTitle = f.SeriesTitle;
+			if (string.IsNullOrWhiteSpace(pTitle))
 				continue;
 
-			if (ret != null && ret != title)
-				throw new Exception($"Posts disagree about the correct title of series {series.Key}.");
+			if (title != null && title != pTitle)
+				throw new Exception($"Posts disagree about the correct title of series {series}.");
 
-			ret = title;
+			title = pTitle;
 		}
 
-		return ret ?? series.Key;
+		if (title != null)
+			return title;
+
+		if (series != null)
+			//ToDo: prettify the series key...?
+			return series;
+
+		throw new ArgumentException("Can't get or infer a title for an empty series. Duh.");
 	}
 
-	//public static IEnumerable<>
-
-	public static string TagPath(string tag)
-	{
-		return "/posts/tags/" + tag;
-	}
-
-	public static string TagUrl(string tag)
-	{
-		return "/posts/tags/" + Uri.EscapeDataString(tag);
-	}
+	public static string SeriesPath(string series) => "/posts/series/" + series;
+	public static string SeriesUrl(string series) => "/posts/series/" + Uri.EscapeDataString(series);
 }

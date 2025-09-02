@@ -5,8 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
-using Microsoft.Extensions.FileSystemGlobbing;
-
 using YamlDotNet.Serialization;
 
 using Markdig;
@@ -65,7 +63,7 @@ partial class Project
 
 		foreach (var (matcher, type) in frontMatterTypes)
 		{
-			if (!matcher.Match(origin.ContentRelativePath.Substring(1)).HasMatches)
+			if (!matcher.IsMatch(origin.ContentRelativePath))
 				continue;
 
 			if (ret != null)
@@ -77,7 +75,7 @@ partial class Project
 		return ret;
 	}
 
-	private List<(Matcher Pattern, Type FrontMatterType)> frontMatterTypes = [];
+	private List<(Glob Pattern, Type FrontMatterType)> frontMatterTypes = [];
 	private void FindFrontMatterTypes()
 	{
 		Debug.Assert(siteCodeAssembly != null);
@@ -86,6 +84,6 @@ partial class Project
 			from type in siteCodeAssembly.GetExportedTypes()
 			let attr = type.GetCustomAttribute<FrontMatterOfAttribute>()
 			where attr != null && type.GetConstructor(BindingFlags.Instance | BindingFlags.Public, []) != null
-			select (Helpers.CreateMatcher(attr.Patterns, exclude: attr.Exclude), type));
+			select (Glob.Create(attr.Patterns, exclude: attr.Exclude), type));
 	}
 }

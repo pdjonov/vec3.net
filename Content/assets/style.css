@@ -13,6 +13,7 @@
 
     --alert-error-color: #F32;
     --alert-warning-color: #D81;
+    --alert-info-color: #516cae;
 
     --tag-background-color: #516cae;
     --tag-text-color: #1e1e1e;
@@ -36,6 +37,7 @@
 
         --alert-error-color: #df1300;
         --alert-warning-color: #ba6e12;
+        --alert-info-color: #516cae;
 
         --tag-background-color: #516cae;
         --tag-text-color: #ddd;
@@ -285,6 +287,9 @@ a:hover {
 .alert-warning {
     border-color: var(--alert-warning-color);
 }
+.alert-info {
+    border-color: var(--alert-info-color);
+}
 
 div.alert > p:first-child {
     margin-top: 0;
@@ -450,4 +455,15 @@ a.badge.post-tag:hover {
         margin: 0 8px;
         white-space: nowrap;
     }
+}
+
+.content .series-prev,
+.content .series-next {
+    border-radius: 8px;
+    background-color: var(--panel-background-color);
+    border-color: var(--alert-info-color);
+    border-width: 1px;
+    border-style: solid;
+    margin: 1em 0;
+    padding: 1em;
 }

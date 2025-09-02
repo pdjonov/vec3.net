@@ -3,6 +3,7 @@ title: How to Make boost::function-like Templates
 tags:
     - code
     - templates
+    - C++
 notes:
     - type: warning
       date: 2025-07-19

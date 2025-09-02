@@ -1,14 +1,15 @@
 @{
-	var post = (MarkdownPage)Body;
-	var frontMatter = (PostFrontMatter)post.FrontMatter;
+	var post = Body.GetPostInfo();
+	var frontMatter = post.FrontMatter;
 
 	var title = GetTitle();
+
+	var series = post.FindInSeries();
 }
 
 @if (!string.IsNullOrWhiteSpace(title))
 {
 	<h2 class="post-title">@title</h2>
-
 
 	var published = frontMatter.Date;
 	<div class="post-date">@published.ToString("MMMM dd, yyyy")</div>
@@ -27,7 +28,6 @@
 	</div>
 }
 
-
 @foreach (var note in frontMatter.Notes ?? [])
 {
 	<div class="editors-note alert @(!string.IsNullOrEmpty(note.Type) ? "alert-" + note.Type : "")">
@@ -39,4 +39,26 @@
 	</div>
 }
 
+@if (!series.IsEmpty)
+{
+	<div class="series-prev">
+		This post is part of the series: <a href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
+		@if (series.HasPrevious)
+		{
+			<text>It follows <a href="@UrlTo(series.Previous.Page)">@series.Previous.PageTitle</a>.</text>
+		}
+	</div>
+}
+
 @await RenderBody()
+
+@if (!series.IsEmpty)
+{
+	<div class="series-next">
+		This post is part of the series: <a href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
+		@if (series.HasNext)
+		{
+			<text>The next part is <a href="@UrlTo(series.Next.Page)">@series.Next.PageTitle</a>.</text>
+		}
+	</div>
+}
