@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
 
-public partial class Project
+public partial class Project : IDisposable
 {
 	public string ContentDirectory { get; }
 
@@ -355,6 +355,22 @@ public partial class Project
 			Select(e => e.Value));
 
 		return ret;
+	}
+
+	public void Dispose()
+	{
+		this.content.Clear();
+		this.frontMatterTypes.Clear();
+		this.layoutTemplateInfos.Clear();
+		this.metadataReferences.Clear();
+		this.razorTemplateInfos.Clear();
+		this.siteCodeAssembly = null;
+
+		GC.Collect();
+
+		assemblyLoadContext.Unload();
+
+		GC.Collect();
 	}
 }
 
