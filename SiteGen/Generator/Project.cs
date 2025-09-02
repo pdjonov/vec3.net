@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace Vec3.Site.Generator;
@@ -301,33 +300,28 @@ public partial class Project
 			{
 				//need to do change detection, and avoid touching filestamps without cause
 
-				using var hasher = SHA1.Create(); //if it's good enough for OG git...
-				Debug.Assert(hasher.CanReuseTransform);
-
-				long oldLength;
-				byte[] oldHash;
-				using (var scanStream = File.OpenRead(fullPath))
-				{
-					oldLength = scanStream.Length;
-					oldHash = await hasher.ComputeHashAsync(scanStream);
-				}
-
-				hasher.Initialize();
+				using var scanStream = File.OpenRead(fullPath);
+				var oldLength = scanStream.Length;
 
 				Debug.Assert(oldLength < int.MaxValue); // looooooool, if this ever...
 
 				var newData = new MemoryStream(capacity: (int)oldLength); //guess an initial capacity close to the old size
-				var hashStream = new CryptoStream(newData, hasher, CryptoStreamMode.Write);
+				await item.WriteContent(newData, path);
 
-				await item.WriteContent(hashStream, path);
-				await hashStream.FlushFinalBlockAsync();
-
-				fileChanged =
-					oldLength != newData.Length ||
-					!oldHash.SequenceEqual(hasher.Hash!);
+				if (oldLength != newData.Length)
+				{
+					fileChanged = true;
+					//nothing to diff
+				}
+				else
+				{
+					newData.Position = 0;
+					fileChanged = !await Helpers.StreamContentsEqual(scanStream, newData);
+				}
 
 				if (fileChanged)
 				{
+					scanStream.Close(); //reopening the file
 					using var outStream = File.Create(fullPath);
 
 					newData.Position = 0;

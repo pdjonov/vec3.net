@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -218,6 +219,52 @@ internal static class Helpers
 		catch (IOException)
 		{
 		}
+	}
+
+	public static async Task<bool> StreamContentsEqual(Stream a, Stream b)
+	{
+		Debug.Assert(a != null && a.CanRead && a.Position == 0);
+		Debug.Assert(b != null && b.CanRead && b.Position == 0);
+
+		var length = a.Length;
+		if (length != b.Length)
+			return false;
+
+		var bufArray = ArrayPool<byte>.Shared.Rent(minimumLength: 16 * 1024 * 2);
+		var bufA = bufArray.AsMemory(0, bufArray.Length / 2);
+		var bufB = bufArray.AsMemory(bufA.Length, bufA.Length);
+		try
+		{
+			while (length > 0)
+			{
+				var nRead = (int)Math.Min(length, bufA.Length);
+
+				var sliceA = bufA.Slice(0, nRead);
+				var sliceB = bufB.Slice(0, nRead);
+
+				var readA = a.ReadAsync(sliceA);
+				var readB = b.ReadAsync(sliceB);
+				
+				var nA = await readA;
+				var nB = await readB;
+
+				if (nA != nB)
+					throw new EndOfStreamException("This shouldn't be possible. We checked that this many bytes exist...");
+
+				if (!sliceA.Span.SequenceEqual(sliceB.Span))
+					return false;
+
+				length -= nRead;
+			}
+
+			Debug.Assert(length == 0);
+		}
+		finally
+		{
+			ArrayPool<byte>.Shared.Return(bufArray, clearArray: false);
+		}
+
+		return true;
 	}
 
 	public static string GetHashString(string data)
