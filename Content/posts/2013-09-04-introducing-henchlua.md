@@ -1,6 +1,7 @@
 ---
 title: Introducing HenchLua
 time: 13:00
+series: HenchLua
 tags:
   - 'C#'
   - code
@@ -8,7 +9,7 @@ tags:
   - Lua
   - programming
 ---
-This is the first of a series of posts on the subject of [HenchLua](https://github.com/henchmeninteractive/HenchLua). HenchLua is an implementation of the Lua VM in C#. It's targeted at projects running in otherwise limited .NET contexts, such as web-based Unity games (the Unity plugin, I believe, requires pure verifiable CIL), mobile apps (which are memory-limited and must meet the limitations of Mono's [full AOT compiler](http://www.mono-project.com/AOT), or apps that run on the .NET Compact Framework (whose garbage collector has some serious performance issues, as anyone who's written an XNA game targeted at the Xbox can attest).
+This is the first of a series of posts on the subject of [HenchLua](https://github.com/henchmeninteractive/HenchLua). HenchLua is an implementation of the Lua VM in C#. It's targeted at projects running in otherwise limited .NET contexts, such as web-based Unity games (the Unity plugin, I believe, requires pure verifiable CIL), mobile apps (which are memory-limited) and must meet the limitations of Mono's [full AOT compiler](http://www.mono-project.com/AOT), or apps that run on the .NET Compact Framework (whose garbage collector has some serious performance issues, as anyone who's written an XNA game targeted at the Xbox can attest).
 
 Studying the standard Lua runtime and reimplementing it in a fundamentally different environment has been an enlightening (and at times maddening) experience. I'm writing this series to share some of the insights I've had along the way, both with respect to .NET programming and in relation to the standard Lua implementation.
 
@@ -45,9 +46,3 @@ A lot is missing at this stage. Most notably, the following are absent:
   * Some of the implicit string-number conversions
   * The debug libraries (Debug info is loaded, and it's even useful in a debugger, but the routines to parse it and implement the actual debug API haven't been ported)
   * Most of the standard libraries
-
-## Moving Onward...
-
-That's about it for the introduction. Next time: on to the implementation!
-
-  1. [Representing Values](/posts/henchlua-representing-values/)

@@ -1,6 +1,7 @@
 ---
 title: 'HenchLua: Representing Values'
 time: 15:00
+series: HenchLua
 tags:
   - 'C#'
   - code

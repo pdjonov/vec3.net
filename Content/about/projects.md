@@ -3,14 +3,14 @@ Some of my non-commercial projects are open-source and available online. Here's 
 *   [HenchLua](https://github.com/henchmeninteractive/HenchLua)
     HenchLua is a performance-oriented implementation of the Lua runtime in C# (with support for constrained .NET environments).
 
-    This isn't technically a non-commercial project, as it was developed for (and is the property of) Henchmen Interactive Inc. I'm the lead engineer and the main contributor (well, sole contributor so far, but that may change soon) on the project, and it is open-source (MIT license), so I feel it belongs here.
+    This wasn't technically a non-commercial project, as it was developed for Henchmen Interactive Inc, but it's still open-source (MIT license). I [wrote](/posts/series/HenchLua) about it (a little) on the blog.
 
 *   [NvTT.NET](http://github.com/pdjonov/NvTT.NET/wiki)
     This is a simple C++/CLI wrapper around [NVidia's Texture Tools](http://developer.nvidia.com/object/texture_tools.html) library. I wrote it since the core wrapper is missing features (like `nvtt::OutputHandler`) and has a fairly ugly interface by .NET standards.
 
     This library may be somewhat out of date with respect to the NVidia Texture Tools as I only update it when I upgrade my projects to a new version of NvTT.
 
-*   [HqNX](code/hqnx)
+*   [HqNX](/posts/hqnx)
     This is a GPU-based implementation of Maxim Stepin's hqNx family of image upscaling algorithms. You can read more about it on its page.
 
 *   [Cobalt-3D](http://code.google.com/p/cobalt-3d/)
