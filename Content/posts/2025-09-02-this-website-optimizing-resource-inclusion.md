@@ -7,7 +7,7 @@ tags:
   - C#
   - Razor
 ---
-One of the perks of making your own stuff is that some days you get to make it do neat things. Yesterday was such a day. I've long been annoyed at having _every_ page linking in _every_ possible script ([highlight.js](https://highlightjs.org/), [MathJax](https://www.mathjax.org/), etc) _just in case_ there might be content on that page that needs it, but now that I control my site generator fully it was _easy_ to go in and fix that.
+One of the perks of making your own stuff is that some days you get to make it do neat things. Yesterday was such a day. I've long been annoyed at having _every_ page linking in _every_ possible script ([highlight.js](https://highlightjs.org/), [MathJax](https://www.mathjax.org/), etc) _just in case_ there might be content on that page that needs it. But now that I'm in full control of the site's generator, it was easy to just fix it.
 
 My goals were simple:
 * No extra scripts on pages that don't need them.
