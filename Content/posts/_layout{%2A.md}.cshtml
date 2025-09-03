@@ -39,14 +39,17 @@
 	</div>
 }
 
-@if (!series.IsEmpty)
+@if (series.HasPrevious)
 {
 	<div class="series-prev">
-		This post is part of the series <a class="series-title" href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
-		@if (series.HasPrevious)
-		{
-			<text>It follows <a href="@UrlTo(series.Previous.Page)">@series.Previous.PageTitle</a>.</text>
-		}
+		This post continues the series <a class="series-title" href="@Posts.SeriesUrl(series.Key)">@series.Title</a>,
+		following <a href="@UrlTo(series.Previous.Page)">@series.Previous.PageTitle</a>.
+	</div>
+}
+else if (!series.IsEmpty)
+{
+	<div class="series-prev">
+		This post begins the series <a class="series-title" href="@Posts.SeriesUrl(series.Key)">@series.Title</a>.
 	</div>
 }
 
