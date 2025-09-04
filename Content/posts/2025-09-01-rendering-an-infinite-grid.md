@@ -73,8 +73,8 @@ Alright, what's going on here?
 First, I need to compute the coordinates of the corners of my quad. I begin by turning our vertex ID into a coordinate on a 1x1 unit square extending from $(0, 0)$ to $(1, 1)$.
 
 ```slang
-	var bit0 = vertexId & 0x1;
-	var bit1 = (vertexId & 0x2) >> 1;
+var bit0 = vertexId & 0x1;
+var bit1 = (vertexId & 0x2) >> 1;
 
 var mPos = float2(
 	// 0, 1, 1, 0
@@ -236,7 +236,7 @@ var majorFog = Fog.Fade(viewDist);
 var minorFog = Fog.ScaledFade(viewDist, float2(0.5, 0.85));
 ```
 
-`Fog.Fade` and `Fog.ScaledFade` are just a couple of utility functions that call `smoothstep` for us:
+`Fog.Fade` and `Fog.ScaledFade` are just a couple of utility functions that call `smoothstep`:
 
 ```slang
 //1 - smoothstep(NearDistance, FarDistance, value)
@@ -406,7 +406,7 @@ var lineMask = 1 - saturate(lineDist /
 	(fwidth(in.GridCoord) * lineWidth));
 ```
 
-Clamping the value to $[0, 1]$ (which is what `saturate` does) and subtracting it from $1$ then yields exactly the desired mask.
+Clamping the scaled `lineDist` value to $[0, 1]$ (which is what `saturate` does) and subtracting it from $1$ then yields exactly the desired mask.
 
 ### Putting it all together
 
