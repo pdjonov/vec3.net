@@ -8,7 +8,7 @@ tags:
   - code
 ---
 
-In an earlier post in this series I worte about _content identity_ being tied to the parameters used to build that content. This means that the parameter packs which drive builders are one of the major load-bearing elements of the overall design. In this post I'll loosely describe the C# compiler plugin which makes their implementation both easier and _much_ more reliably correct.
+In an earlier post in this series I worte about _content identity_ being tied to the parameters used to build that content. This means that the parameter packs which drive builders are one of the major load-bearing elements of the overall design. In this post I'll describe the C# compiler plugin which makes their implementation both easier and _much_ more reliably correct.
 
 # Requirements
 
@@ -31,7 +31,7 @@ C#'s [`record class`](https://learn.microsoft.com/en-us/dotnet/csharp/language-r
 * Default-immutability must be made mandatory.
 * Serialization methods must be implemented.
 
-Further, it would be useful to allow parameter packs to contain (appropriately restricted) structured values themselves. So the need for serialization needs to be separated and available as something that can be inherited by tyepes other than just the top-level parameter pack types.
+Further, it would be useful to allow parameter packs to contain (appropriately restricted) structured values themselves (mostly other parameter packs). So the need for serialization needs to be separated and available as something that can be inherited by tyepes other than just the top-level parameter pack types.
 
 This results in two abstract base classes:
 
@@ -54,22 +54,18 @@ public abstract record BuildArgs : SerializableArgsRecord
 }
 ```
 
-The base `SerializableArgsRecord` class has a `Serialize` function that writes out its contents. This method will be overridden and written automatically by the code generator. It also has a constructor which can be used to deserialize the written values and, again, derived classes will have this written for them by the code generator.
+The base `SerializableArgsRecord` class has a `Serialize` function that writes out its contents and a constructor which can be used to deserialize the written values. These would be really tedious to write by hand, so they're written by a code generator instead.
 
-The `BuildArgs` class is the root of content identity and the stepping-off point into the build system itself (`BuilderVersion` and `CreateBuilder`, respectively).
+The `BuildArgs` class is the root of content identity and the stepping-off point into the build system itself. Its `BuilderVersion` and `CreateBuilder` members are what link it to that system, while _identity_ (at least in the current design) is driven by computing a hash of the serialized properties.
 
 # Implementation
 
-One way to meet the design requirements would be simply to do it by hand. That means lots of careful code reviews. It also means occasionally letting a bug slip through and dealing with _very_ gnarly bugs as a consequence (especially if those bugs lead to corruption in the dependency cache).
+So, there are custom requirements that need to be imposed on parameter packs _and_ there's code to be generated. Both of these things require a description of the code's structure and semantics which is difficult to produce without effectively being the C# compiler. Fortunately, it's possible to be the next-best thing - being _in_ the C# compiler, which supports _plugins_ that can easily interact with the compiler's representation of the code _and its semantics_. There are two major categories of plugin:
 
-However, the requirements actually map onto very simple algorithmic checks which could be automated if only it was possible to inject code into the middle of the compilation process. And it is, in fact, possible to do just that.
+* Code _analyzers_, which can impose additional restrictions on code structure, reporting not only warnings but even hard errors.
+* Code _generators_, which can do everything that analyzers do _in addition to_ also generating additional code which subsequently becomes part of the very same compilation.
 
-The C# compiler supports plugins which come in two flavors:
-
-* Analyzers, which can impose additional restrictions on code structure, reporting not only warnings but even hard errors.
-* Code generators, which can do everything that analyzers do _and also_ produce additional code which becomes part of the compilation.
-
-And they aren't very difficult to write.
+And they aren't actually all that hard to write.
 
 ## Setting up a compiler plugin project
 
@@ -92,8 +88,8 @@ Compiler plugins are just regular .NET assemblies. The basic project scaffolding
 </Project>
 ```
 
-* The `TargetFramework` is `netstandard2.0` in order to remain maximally compatible as the compiler itself migrates from one version of `netcore` to the next.
-* The `PackageReference` brings in the compiler API. As of writing I'm sitting on an older package simply because there's no compelling reason to upgrade. For new projects, start with whatever's the lastest package available at the time(of those supported by the oldest .NET SDK you care to support).
+* The `TargetFramework` is `netstandard2.0` since that remains a stable foundation even as the compiler itself moves from one version of the .NET runtime to another.
+* The `PackageReference` brings in the compiler API. As of writing I'm sitting on an older package simply because there's no compelling reason to take a potentially-breaking major-version upgrade to _4.x_. For new projects, just start with whatever's the lastest package available at the time (out of those supported by the oldest .NET SDK you care to support).
 * The compiler API has nullability annotations, so the `Nullable` feature makes using it smoother and less bug-prone.
 * The `RS2008`suppression turns off a warning about release tracking (documentation) that isn't relevant for this sort of project where the compiler plugin lives in the same solution as the code it's intended for.
 
@@ -129,9 +125,9 @@ public class BuildArgsSerializationCodeGenerator : ISourceGenerator
 }
 ```
 
-The `BuildArgsSerializationCodeGenerator` is where everything starts. When the compiler loads the plugin assembly it'll scan over its contents and find this type. The `[Generator]` attribute and the `ISourceGenerator` interface tell it that it should instantiate the class and call its members at the appropriate compilation stages.
+The `BuildArgsSerializationCodeGenerator` is where everything starts. When the compiler loads the plugin assembly it scans over the its public types. The `[Generator]` attribute and the `ISourceGenerator` interface tell the compiler that it should instantiate the class and call its members at the appropriate times during compilation.
 
-Source generation then works in two passes. In the first pass, the source generators are given a representation of the parsed source as it was when given to the compiler. They can traverse the syntax tree to find whatever information it is that they need to do their code-generation work. In the second pass, they generate code.
+Source generation then works in two passes. In the first pass, the source generators are given a representation of the parsed source as it was when given to the compiler. They can traverse the syntax tree to find whatever information it is that they need to do their code-generation work. In the second pass, they generate code and insert it into the compilation.
 
 ```csharp
 context.RegisterForSyntaxNotifications(() => new SyntaxReceiver());
@@ -141,7 +137,7 @@ This just means that the generator needs to participate in the first pass, and i
 
 ## Finding the parameter packs
 
-In this case, a parameter pack is defined as just a `record class` which derives from a specific type, called `BuildArgs`. To find them all, the `SyntaxReceiver` does this:
+In this case, the interesting types are all `record class`es which derives from our `SerializableArgsRecord` or `BuildArgs` types. To find them all, the `SyntaxReceiver` just does this:
 
 ```csharp
 private class SyntaxReceiver : ISyntaxContextReceiver
@@ -199,16 +195,14 @@ There are a few notable things to start:
 * The syntax receiver's `OnVisitSyntaxNode` method will be called once for every syntax node in the compilation.
 * The syntax receiver can look at more than _just_ one node at a time.
 
-What this code does is fairly straightforward.
-
-First, the generator is interested in types derived from `SerializableArgsRecord`, with possibly some special attention paid to `BuildArgs`. Going in order:
+And yes, it really is this simple. Going in order:
 
 ```csharp
-if (context.Node is not RecordDeclarationSyntax recDecl)
+if (context.Node is not RecordDeclarationSyntax recDecl || recDecl.Kind() == SyntaxKind.RecordStructDeclaration)
 	return;
 ```
 
-The generator isn't interested in anything that's not a `record` type.
+The generator isn't interested in anything that's not a `record class` type.
 
 ```csharp
 	SerializableArgsRecordType ??= context.SemanticModel.Compilation.GetTypeByMetadataName("Content.Build.SerializableArgsRecord")!;
@@ -236,7 +230,7 @@ for (var b = sym.BaseType; b != null; b = b.BaseType)
 }
 ```
 
-It looks up the semantic representation of the syntax node and goes through its base types. If it finds one of the bases that it's interested in, then it records that information for the generation phase.
+It then looks up the _semantic_ representation of the syntax node and goes through its base types. If it finds one of the bases that it's interested in, then it records what it found for the generation phase.
 
 ## Validating the parameter packs
 
@@ -412,6 +406,8 @@ foreach (var typeInfo in syntaxReceiver.SerializableRecordTypes)
 	nsList.Reverse();
 	implFile.AppendLine($"namespace {string.Join(".", nsList.Select(ns => ns.Name))};");
 
+	//extend the record
+
 	var bareTypeName = decl.Identifier.ValueText;
 	var typeDeclName = $"{decl.Identifier.ValueText}{decl.TypeParameterList?.ToString()}";
 	implFile.AppendLine($"partial record {typeDeclName}");
@@ -421,6 +417,9 @@ foreach (var typeInfo in syntaxReceiver.SerializableRecordTypes)
 	implFile.AppendLine($"\tprivate const string Signature = {escapedSignatureHashString};");
 
 	//add the serialization method
+
+	var tempNum = 0;
+	string NewTempName() => $"t{tempNum++}";
 
 	implFile.AppendLine("public override void Serialize(BuildArgsWriter writer)");
 	implFile.AppendLine("{");
@@ -432,7 +431,7 @@ foreach (var typeInfo in syntaxReceiver.SerializableRecordTypes)
 
 		EmitWrite(prop.Name, prop.Type);
 
-		void EmitWrite(string valName, ITypeSymbol type, int level = 0, bool isRefChecked = false)
+		void EmitWrite(string valName, ITypeSymbol type, bool isRefChecked = false)
 		{
 			if (IsNullable(type, out var nulledType))
 			{
@@ -441,9 +440,9 @@ foreach (var typeInfo in syntaxReceiver.SerializableRecordTypes)
 
 				implFile.AppendLine($"writer.WriteValue({valName}.HasValue);");
 				implFile.AppendLine($"if ({valName}.HasValue) {{");
-				var nulledName = $"v{level}"; //need a unique name for the temporary value
+				var nulledName = NewTempName(); //need a unique name for the temporary value
 				implFile.AppendLine($"var {nulledName} = {valName}.Value;");
-				EmitWrite(nulledName, nulledType!, level: level + 1);
+				EmitWrite(nulledName, nulledType!);
 				implFile.AppendLine("}");
 			}
 			//snip: similar handling for nullable reference types
@@ -496,6 +495,8 @@ For each of the build args types, the generator makes a code file that adds an i
 Certain things like `Nullable`, nullable reference types, and arrays (which must be _immutable_) are handled by generating code which just unwraps that layer of the type before writing (or reading) the inner value. There's special handling as well for enums.
 
 The final most-unwrapped value is then written by calling the `BuildArgsWriter.WriteValue` method, which is overloaded _only_ for the root set of allowable types. That includes anoverload for types derived from `SerializableArgsRecord`, which allows for recursive nesting of these types.
+
+And care has to be taken to avoid collisions among the names of temporary variables.
 
 But ultimatey, _whatever_ code is generated and _however_ it is structured, it's injected into the compilation with `context.AddSource`, and then the compiler does its magic after that.
 
