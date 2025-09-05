@@ -13,6 +13,10 @@ This is the first of a series of posts on the subject of [HenchLua](https://gith
 
 Studying the standard Lua runtime and reimplementing it in a fundamentally different environment has been an enlightening (and at times maddening) experience. I'm writing this series to share some of the insights I've had along the way, both with respect to .NET programming and in relation to the standard Lua implementation.
 
+<div class="alignright caption-box">
+  <img class="henchie" src="/assets/img/henchies/guv.webp" />
+</div>
+
 ## Design Goals
 
 Unlike [KopiLua](https://github.com/NLua/KopiLua), which aims for the highest possible degree of compatibility with standard Lua, HenchLua's first goal is efficiency, followed closely by _a useful_ degree of compatibility with the standard. To that end, I've made a number of compromises. So, what exactly does that mean?
@@ -28,6 +32,10 @@ Of course, some of these goals complicates the implementation of the VM. Fortuna
 The API is also vastly different from Lua's. Since Lua objects and .NET objects live in the same conceptual memory space and are both subject to the same garbage collector, there's no need to firewall Lua objects behind the standard runtime's stack API. Lua objects are directly accessible to .NET code, to the extent that HenchLua's `Table` type can _almost_ be used like a `Dictionary<Value, Value>` (there are some semantic differences concerning the way `nil` keys and values are treated).
 
 The only exception to this is Lua's function objects. While strings and tables can be directly constructed and manipulated, Lua functions can't be called directly. There's a good deal of state that needs to be tracked when running a Lua function, and for that we have the `Thread` object, whose job it is to execute the Lua bytecode contained in Lua `Function` objects.
+
+<div class="alignright caption-box">
+  <img class="henchie" src="/assets/img/henchies/train.webp" />
+</div>
 
 ## What Works
 

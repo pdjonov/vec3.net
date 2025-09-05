@@ -12,11 +12,11 @@ In an earlier post in this series I worte about _content identity_ being tied to
 
 # Requirements
 
-Specifically, I [wrote](/posts/building-content-just-in-time-dependencies#content-identity) the following:
+Specifically, I [previously wrote](/posts/building-content-just-in-time-dependencies#content-identity) the following:
 
 > Content builders must explicitly declare their input parameters. And these parameters can be anything serializable: strings, ints, enums, arrays of such, etc. These parameters can (and commonly do) name input files, but there's no rule against a content builder programmatically producing noise based on some input integer seed value.
 
-To expand on that, a parameter pack should have the following properties:
+With the addition of some practical concerns, a parameter pack should have the following properties:
 
 * It must only contain serializable values, possibly restricted only to types which make sense.
 * It must be value-comparable and have a well-behaved `GetHashCode` method.

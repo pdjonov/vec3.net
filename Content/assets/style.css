@@ -198,6 +198,12 @@ div.footer>div>p {
     grid-column: 2;
 }
 
+/* div.footer>img.henchie {
+    grid-column: 3;
+    height: 2.75em;
+    margin: auto 0 0 auto;
+} */
+
 /* Body */
 
 .content {
@@ -471,4 +477,17 @@ a.badge.post-tag:hover {
 .content .series-prev a.series-title,
 .content .series-next a.series-title {
     font-style: italic;
+}
+
+div.caption-box:has(.henchie) {
+    background-color: #20b6eb;
+}
+
+div.henchies {
+    margin-top: 2em;
+}
+div.henchies>.henchie {
+    display: inline-block;
+    height: 64px;
+    padding: 8px;
 }

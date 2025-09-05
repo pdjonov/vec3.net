@@ -9,6 +9,11 @@ tags:
   - Lua
   - programming
 ---
+
+<div class="alignright caption-box">
+  <img class="henchie" src="/assets/img/henchies/servo.webp" />
+</div>
+
 ## Values
 
 Lua supports the following standard types:
@@ -105,15 +110,19 @@ internal sealed class BoolBox
 
 The final semantics are fairly straight-forward. `RefVal` always carries the type information. For reference types, the already existing .NET type info is sufficient to identify the actual value. For true value types, I either use a preallocated and immutable boxed value (for booleans), or I use the sentinel value `Value.NumTypeTag` (which tells us that the actual value is in the `NumVal` field). And `null` obviously means `nil`.
 
+<div class="alignright caption-box">
+  <img class="henchie" src="/assets/img/henchies/tools.webp" />
+</div>
+
 ## Strings
 
 Lua strings are byte arrays. That's unfortunate, because it means the standard `System.String` type can't be used directly. So, first step in writing a custom type is gathering requirements. Lua strings are:
 
-  * Byte arrays - they can readily contain embedded zeroes
-  * Immutable
-  * Very often used as keys to a hashtable
-  * Sometimes used to hold large blocks of data
-  * Reference types
+* Byte arrays - they can readily contain embedded zeroes
+* Immutable
+* Very often used as keys to a hashtable
+* Sometimes used to hold large blocks of data
+* Reference types
 
 So our implementation needs to be compact and quick to compare. The naive approach follows:
 

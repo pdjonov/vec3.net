@@ -19,6 +19,12 @@
 				year = date.Year;
 				month = int.MinValue;
 				<h2 class="date-year">@(date.ToString("yyyy"))</h2>
+				if (year == 2013)
+				{
+					<div class="alignright caption-box">
+						<img class="henchie" src="/assets/img/henchies/tools.webp" />
+					</div>
+				}
 			}
 
 			if (date.Month != month)

@@ -21,3 +21,13 @@
 		@await RenderPartial("_listitemwithexcerpt.cshtml", post.Page)
 	}
 </div>
+
+@if (Series.Key == "HenchLua")
+{
+	<div class="caption-box aligncenter henchies">
+		<img class="henchie" src="/assets/img/henchies/guv.webp" />
+		<img class="henchie" src="/assets/img/henchies/servo.webp" />
+		<img class="henchie" src="/assets/img/henchies/train.webp" />
+		<img class="henchie" src="/assets/img/henchies/tools.webp" />
+	</div>
+}
