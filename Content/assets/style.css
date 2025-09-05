@@ -318,9 +318,12 @@ code {
     color: var(--body-code-color);
     tab-size: 4;
 }
-code:not(pre*) {
+code:not(pre *) {
     background: var(--panel-background-color);
     border-radius: 4px;
+}
+a>code {
+    color: inherit;
 }
 
 pre:has(code), div.math, blockquote {
@@ -490,4 +493,7 @@ div.henchies>.henchie {
     display: inline-block;
     height: 64px;
     padding: 8px;
+}
+.henchie:not(.henchies *) {
+    transform: scaleX(-1);
 }
