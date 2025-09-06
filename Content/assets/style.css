@@ -11,6 +11,8 @@
     --panel-text-color: #dcdcdc;
     --panel-dim-color: #808080;
 
+    --scrollbar-thumb-color: #808080;
+
     --alert-error-color: #F32;
     --alert-warning-color: #D81;
     --alert-info-color: #516cae;
@@ -35,6 +37,8 @@
         --panel-text-color: #111;
         --panel-dim-color: #444;
 
+        --scrollbar-thumb-color: #555;
+
         --alert-error-color: #df1300;
         --alert-warning-color: #ba6e12;
         --alert-info-color: #516cae;
@@ -56,6 +60,9 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
+
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb-color) transparent;
 }
 
 body>.content {
