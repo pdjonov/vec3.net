@@ -350,6 +350,16 @@ blockquote > p:last-child {
     margin-bottom: 0;
 }
 
+li {
+    margin: 0.25em 0 0.25em 0;
+}
+li>p:first-child {
+    margin-top: 0;
+}
+li>p:last-child {
+    margin-bottom: 0;
+}
+
 div.sketch:has(canvas) {
     display: block;
     background: var(--panel-background-color);
