@@ -76,8 +76,8 @@ The rest of the flags have to do with how this memory will interact with the CPU
 
 Sometimes there will be only one option in this regard. Sometimes drivers will offer multiple options, and the software chooses whichever it prefers. In such a case:
 
-* When _writing_ data _contiguously_ and _sequentially_ and doing _no reading whatsoever:_ avoid `HOST_CACHED`. In all other cases, _insist_ on `HOST_CACHED` (and be prepared for things to run _sloooow_ if it isn't available).
-* Whenever it's not burdensome to appropriately call `vkFlushMappedMemoryRanges` and `vkInvalidateMappedMemoryRanges`, avoid `HOST_COHERENT`. If you _can't_ call those functions then _insisit_ on `HOST_COHERENT`.
+* When _writing_ data _contiguously_ and _sequentially_ and doing _no reading whatsoever:_ avoid `HOST_CACHED` (but no big deal if you can't). In all other cases, _insist_ on `HOST_CACHED` (and be prepared for things to run _sloooow_ if it isn't available and you proceed without it).
+* Whenever it's not burdensome to appropriately call `vkFlushMappedMemoryRanges` and `vkInvalidateMappedMemoryRanges`, call those functions and avoid `HOST_COHERENT` (but no big deal if you get stuck with it anyway). If you _can't_ call those functions then `HOST_COHERENT` is _absolutely required_.
 
 ## The secret sauce
 
