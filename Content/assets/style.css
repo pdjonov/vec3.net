@@ -353,6 +353,9 @@ blockquote > p:last-child {
 li {
     margin: 0.25em 0 0.25em 0;
 }
+li>p {
+    margin: 0.25em 0 0.25em 0;
+}
 li>p:first-child {
     margin-top: 0;
 }
