@@ -55,6 +55,8 @@ These tell us (well, these _strongly suggest_) the location of the memory:
 * `DEVICE_LOCAL` means that the GPU can _efficiently_ access this memory. If this bit is missing, then the GPU's access to this memory might be _slow(er)_, and thus the memory type is only suitable for small bits of read-_once_ configuration data (like, perhaps, a command stream).
 * `HOST_VISIBLE` means that the CPU can access this memory.
   * If it's paired with `DEVICE_LOCAL`, that usually indicates that the CPU and GPU can deconflict access to some region of VRAM and that the CPU is therefore allowed to map and access it directly.
+
+    This combination is typically seen on integrated GPUs and on mobile devices where main RAM and VRAM are the same thing, but it's also present on newer discrete desktop GPUs, where the trend is to make more and more of VRAM visible to the CPU over the PCIe bus. (Look up the terms BAR and ReBAR for more info.)
   * If it's present but `DEVICE_LOCAL` is absent, then this is probably part of system RAM which the GPU can nevertheless access (if more slowly.)
   * If it's absent, then that's probably a part of VRAM which the CPU is _not_ allowed to touch because the cost of deconflicting external CPU access from internal GPU access to (that part of) VRAM is just too expensive.
 * `LAZILY_ALLOCATED` is interesting. It represents those special small regions of ultrafast VRAM mentioned above. Those generally have to be carefully managed by the graphics driver, so this flag is incompatible with `HOST_VISIBLE`, the CPU is _not_ allowed to directly touch it. Assume the driver is deploying tiny demons to do magic on your behalf. (Okay, fine, I'll be serious: this has to do with how framebuffers are allocated on a GPU which uses a [tiled rendering](https://en.wikipedia.org/wiki/Tiled_rendering) approach, and these approaches require the aforementioned special small fast memories.)
@@ -70,7 +72,7 @@ The rest of the flags have to do with how this memory will interact with the CPU
 
   If this flag is missing then the application must _explicitly_ ask the CPU and GPU to shake hands using [`vkFlushMappedMemoryRanges`](https://registry.khronos.org/vulkan/specs/latest/man/html/vkFlushMappedMemoryRanges.html) after sending data to the GPU and [`vkInvalidateMappedMemoryRanges`](vkInvalidateMappedMemoryRanges) before reciving data. Obviously don't call these functions one byte (well, one cache line) at a time: that's slow and _bad_. And ideal use case is writing an entire buffer full of uniform data and then flushing the whole thing at once for the whoe frame before submitting commands which will read that data.
 
-  If this flag is present, thenthose functions don't need to be called, but they don't hurt much if called regardless.
+  If this flag is present, then those functions don't need to be called, but they don't hurt much if called regardless.
 
 Sometimes there will be only one option in this regard. Sometimes drivers will offer multiple options, and the software chooses whichever it prefers. In such a case:
 
