@@ -8,7 +8,7 @@
 
 <div id="posts-history" class="post-list">
 	<h1>Recent posts</h1>
-	@foreach (var post in Project.Content.GetPosts().Take(8))
+	@foreach (var post in Project.Content.GetPosts().Take(16))
 	{
 		@await RenderPartial("/posts/_listitemwithexcerpt.cshtml", post.Page)
 	}

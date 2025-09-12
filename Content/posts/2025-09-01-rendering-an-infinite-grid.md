@@ -6,6 +6,7 @@ tags:
   - shaders
   - slang
   - Vulkan
+  - WebGL
 notes:
   - type: info
     date: 2025-09-12
@@ -271,7 +272,7 @@ Read on to find out _exactly_ how that image is rendered.
 
 # Implementation
 
-This discussion will be using some Vulkan terminology, and the shader code is in [Slang](https://shader-slang.org/), but it should all be trivial to translate to other languages and APIs.
+This discussion will be using some Vulkan terminology, and the shader code is in [Slang](https://shader-slang.org/), but it should all be trivial to translate to other languages and APIs. For instance, the image above is powered by a WebGL implementation, which you can find right in this page's source.
 
 First of all, it's an infinite plane. It doesn't have any real geometric structure, so it doesn't need vertex buffers and so on. To kick this off, I just bind the pipeline and kick off a `vkCmdDraw` for 4 vertices (since what I want is logically a _quad_). The pipeline uses a triangle _fan_ topology, but this could just as well have been a triangle strip (with appropriate adjustments in the vertex shader).
 
