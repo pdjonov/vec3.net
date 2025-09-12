@@ -105,6 +105,10 @@
 	{
 		<script src="/assets/sketch.js"></script>
 	}
+	@if (features.Contains("vec3.sketch3d"))
+	{
+		<script src="/assets/sketch3d.js"></script>
+	}
 
 	@* Page-specific extras *@
 	@await RenderSection("head", required: false)

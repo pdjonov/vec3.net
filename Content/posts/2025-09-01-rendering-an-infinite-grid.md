@@ -6,14 +6,266 @@ tags:
   - shaders
   - slang
   - Vulkan
+notes:
+  - type: info
+    date: 2025-09-12
+    text: >
+        The preview image of the grid in this post is now interactive (on most browsers). Click around to see the algorithm outlined below in action.
 ---
 
 I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's how it works.
 
-<div class="caption-box aligncenter">
-  <img src="/assets/img/liminal-plane.webp" alt="An infinite floor plane." />
-  <em>Un-limited <s>powah!</s> grid.</em>
-</div>
+<script>
+	sketch3d.load(class extends sketch3d.webglSketch {
+		static get fallbackImage() { return '/assets/img/liminal-plane.webp'; }
+		static get captionHTML() { return '<em>Un-limited <s>powah!</s> grid.</em>'; }
+
+		constructor(canvas) {
+			super(canvas);
+
+			this._clearColor = [0, 0, 0, 0];
+
+			this.#prog = this.compileProgram(
+				//vertex shader
+				`#version 300 es
+
+				const float GridSize = 0.5;
+				const int GridMinorsPerMajor = 4;
+
+				uniform mat4 uView;
+				uniform mat4 uInvView;
+				uniform mat4 uProj;
+				uniform vec2 uFogRange;
+
+				out vec2 vGridCoord;
+				out mediump vec3 vViewPos;
+
+				void main() {
+					int bit0 = gl_VertexID & 0x1;
+					int bit1 = (gl_VertexID & 0x2) >> 1;
+
+					vec2 mPos = vec2(
+						// 0, 1, 1, 0
+						bit0 ^ bit1,
+						// 1, 1, 0, 0
+						1 - bit1) * 2.0 - 1.0;
+
+					mPos = mPos * uFogRange.y + uInvView[3].xz;
+
+					vec4 wPos = vec4(mPos.x, -0.001, mPos.y, 1);
+					vec4 vPos = uView * wPos;
+
+					gl_Position = uProj * vPos;
+					vGridCoord = wPos.xz / GridSize + 0.5;
+					vViewPos = vPos.xyz;
+				}`,
+				//fragment shader
+				`#version 300 es
+				precision highp float;
+
+				const float GridSize = 0.5;
+				const int GridMinorsPerMajor = 4;
+
+				uniform vec2 uFogRange;
+
+				in vec2 vGridCoord;
+				in mediump vec3 vViewPos;
+
+				out mediump vec4 oColor;
+
+				void main() {
+					// figure out our fogging values
+					float viewDist = length(vViewPos);
+					float majorFog = 1.0 - smoothstep(uFogRange.x, uFogRange.y, viewDist);
+					float minorFog = 1.0 - smoothstep(uFogRange.x * 0.5, uFogRange.y* 0.85, viewDist);
+
+					// find the index of the closest grid line to this pixel
+					ivec2 lineIndex = ivec2(floor(vGridCoord));
+
+					// pick an appropriate width and color for the closest line (in *each* of X and Y!)
+					vec2 lineWidth;
+					vec3 lineColor[2];
+					vec2 lineFog;
+					for (int i = 0; i < 2; i++)
+					{
+						float width;
+						vec3 color;
+						float fog;
+
+						if (lineIndex[i] == 0)
+						{
+							width = 5.0;
+							color = vec3(i == 1, 0, i == 0);
+							fog = majorFog;
+						}
+						else if (lineIndex[i] % GridMinorsPerMajor == 0)
+						{
+							width = 3.0;
+							color = vec3(0.5);
+							fog = majorFog;
+						}
+						else
+						{
+							width = 2.0;
+							color = vec3(0.25);
+							fog = minorFog;
+						}
+
+						lineWidth[i] = width;
+						lineColor[i] = color;
+						lineFog[i] = fog;
+					}
+
+					vec2 lineDist = abs(0.5 - fract(vGridCoord)) * 2.0;
+					vec2 lineMask = 1.0 - clamp(lineDist /
+						(fwidth(vGridCoord) * lineWidth), 0.0, 1.0);
+
+					vec2 blendFactors = lineMask * lineFog;
+					for (int i = 0; i < 2; i++)
+						if (lineIndex[1 - i] == 0 && lineIndex[i] != 0)
+							blendFactors[i] *= smoothstep(0.0, 0.5, lineDist[1 - i]);
+
+					vec3 finalColor = max(lineColor[0] * blendFactors.x, lineColor[1] * blendFactors.y);
+					float finalAlpha = max(blendFactors.x, blendFactors.y);
+
+					oColor = vec4(finalColor, finalAlpha);
+				}`);
+		}
+
+		#prog;
+
+		_draw(gl) {
+			super._draw(gl);
+
+			const math = sketch3d.math;
+
+			const mView = math.ma4x4.viewLookAt(
+				this.#viewPosition(),
+				this.#viewLookAt,
+				this.#viewUp());
+			const mProj = math.m4x4.projectPerspectiveFov(
+				90 * Math.PI / 180, this.width / this.height, 0.1);
+
+			const p = this.#prog;
+			gl.useProgram(p);
+			p.uniforms.uView.set(mView);
+			p.uniforms.uInvView.set(sketch3d.math.ma4x4.inverse(mView));
+			p.uniforms.uProj.set(mProj);
+			p.uniforms.uFogRange.set([10,16]);
+
+			gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+		}
+
+		//camera
+
+		#viewLookAt = new sketch3d.math.vec3(-0.5685110092163086, 0, 0.13670504093170166);
+		#viewRotation = new sketch3d.math.quat(0.41593441367149353, -0.1826382577419281, -0.10707172751426697, -0.8844079375267029);
+		#viewRange = 5;
+
+		#viewPosition() {
+			return this.#viewLookAt.clone().sub(this.#viewForward().scaleBy(this.#viewRange));
+		}
+		#viewForward() {
+			return this.#viewRotation.rotatePoint([0, 0, -1]);
+		}
+		#viewRight() {
+			return this.#viewRotation.rotatePoint([1, 0, 0]);
+		}
+		#viewUp() {
+			return this.#viewRotation.rotatePoint([0, 1, 0]);
+		}
+
+		#pdX = 0;
+		#pdY = 0;
+		#pdLookAt = null;
+		#pdLookRotation = null;
+		#pdMode = null;
+
+		_pointerDown(x, y) {
+			this.#pdX = x;
+			this.#pdY = y;
+			this.#pdLookAt = this.#viewLookAt.clone();
+			this.#pdLookRotation = this.#viewRotation.clone();
+
+			this.#pdMode = 'pan';
+			if (x * x + y * y > 0.9)
+				this.#pdMode = 'rot';
+
+			return {capture: true};
+		}
+		_pointerUp(x, y) {
+			this.#pdLookAt = null;
+			this.#pdLookRotation = null;
+			this.#pdMode = null;
+		}
+
+		_pointerMove(x, y, cap) {
+			if (!cap)
+				return;
+
+			const dx = x - this.#pdX;
+			const dy = y - this.#pdY;
+
+			if (this.#pdMode === 'pan') {
+				const vf = this.#viewForward();
+				vf[1] = 0;
+				const vr = this.#viewRight();
+				vr[1] = 0;
+
+				const s = -10 / this.#viewRange;
+
+				this.#viewLookAt = this.#pdLookAt.
+					clone().
+					add(vf.scaleBy(dy * s)).
+					add(vr.scaleBy(dx * s));
+			} else if (this.#pdMode === 'rot') {
+				const vd = screenToArc(this.#pdX, this.#pdY);
+				const vc = screenToArc(x, y);
+
+				const q = quatFromVecs(vd, vc);
+
+				this.#viewRotation = this.#pdLookRotation.
+					clone().
+					mul(q);
+
+				function screenToArc(x, y) {
+					var lsq = x * x + y * y;
+
+					var z;
+					if (lsq > 1)
+					{
+						var s = 1 / Math.sqrt(lsq);
+
+						x *= s;
+						y *= s;
+
+						z = 0;
+					}
+					else
+					{
+						z = Math.sqrt(1 - lsq);
+					}
+
+					return new sketch3d.math.vec3(x, y, z);
+				}
+
+				function quatFromVecs(s, e) {
+					const ijk = sketch3d.math.vec3.cross(s, e);
+					const w = -sketch3d.math.vec3.dot(s, e);
+
+					var ret = new sketch3d.math.quat();
+					ret[0] = ijk[0];
+					ret[1] = ijk[1];
+					ret[2] = ijk[2];
+					ret[3] = w;
+					return ret;
+				}
+			}
+
+			return {redraw: true};
+		}
+	});
+</script>
 
 Read on to find out _exactly_ how that image is rendered.
 

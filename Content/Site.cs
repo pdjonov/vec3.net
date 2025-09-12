@@ -67,6 +67,8 @@ public static class Site
 				case IHtmlScriptElement script when script.IsJavaScript():
 					if ((script.Text ?? "").Contains("sketch.load"))
 						ret.Add("vec3.sketch");
+					if ((script.Text ?? "").Contains("sketch3d.load"))
+						ret.Add("vec3.sketch3d");
 					break;
 			}
 		}
