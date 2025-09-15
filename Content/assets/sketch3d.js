@@ -167,6 +167,119 @@
 
 	//#region math
 
+	class vec2 extends Float32Array {
+		constructor(x = 0, y = 0) {
+			super(2);
+			this[0] = x;
+			this[1] = y;
+		}
+
+		get x() { return this[0]; }
+		set x(v) { this[0] = v; }
+		get y() { return this[1]; }
+		set y(v) { this[1] = v; }
+
+		clone() {
+			return new vec2(this[0], this[1]);
+		}
+		static clone(v) {
+			return new vec2(v[0], v[1]);
+		}
+
+		lengthSquared() {
+			return vec2.lengthSquared(this);
+		}
+		static lengthSquared(v) {
+			const x = v[0];
+			const y = v[1];
+
+			return x * x + y * y;
+		}
+
+		length() {
+			return vec2.length(this);
+		}
+		static length(v) {
+			return Math.sqrt(vec2.lengthSquared(v));
+		}
+
+		static distanceSquared(a, b) {
+			const dx = a[0] - b[0];
+			const dy = a[1] - b[1];
+			return dx * dx + dy * dy;
+		}
+		static distance(a, b) {
+			return Math.sqrt(vec2.distanceSquared(a, b));
+		}
+
+		scaleBy(s) {
+			this[0] *= s;
+			this[1] *= s;
+			return this;
+		}
+
+		normalize() {
+			return this.scaleBy(1 / this.length());
+		}
+		static normalize(v) {
+			return new vec2(v[0], v[1]).normalize();
+		}
+
+		add(a) {
+			this[0] += a[0];
+			this[1] += a[1];
+			return this;
+		}
+
+		setAdd(a, b) {
+			this[0] = a[0] + b[0];
+			this[1] = a[1] + b[1];
+			return this;
+		}
+
+		static add(a, b) {
+			return new vec2(
+				a[0] + b[0],
+				a[1] + b[1]);
+		}
+
+		sub(a) {
+			this[0] -= a[0];
+			this[1] -= a[1];
+			return this;
+		}
+
+		setSub(a, b) {
+			this[0] = a[0] - b[0];
+			this[1] = a[1] - b[1];
+			return this;
+		}
+
+		static sub(a, b) {
+			return new vec2(
+				a[0] - b[0],
+				a[1] - b[1]);
+		}
+
+		dot(a) {
+			return vec2.dot(this, a);
+		}
+		static dot(a, b) {
+			return a[0] * b[0] + a[1] * b[1];
+		}
+
+		//+1 or -1 to indicate the winding order of triangle abc, or 0 if it's degenerate
+		static winding(a, b, c) {
+			const ax = a[0];
+			const ay = a[1];
+			const bx = b[0];
+			const by = b[1];
+			const cx = c[0];
+			const cy = c[1];
+			return Math.sign((bx - ax) * (cy - ay) - (by - ay) * (cx - ax));
+		}
+	}
+
 	class vec3 extends Float32Array {
 		constructor(x = 0, y = 0, z = 0) {
 			super(3);
@@ -204,6 +317,16 @@
 		}
 		static length(v) {
 			return Math.sqrt(vec3.lengthSquared(v));
+		}
+
+		static distanceSquared(a, b) {
+			const dx = a[0] - b[0];
+			const dy = a[1] - b[1];
+			const dz = a[2] - b[2];
+			return dx * dx + dy * dy + dz * dz;
+		}
+		static distance(a, b) {
+			return Math.sqrt(vec3.distanceSquared(a, b));
 		}
 
 		scaleBy(s) {
@@ -848,6 +971,7 @@
 		},
 
 		math: {
+			vec2,
 			vec3,
 			quat,
 			ma4x4,
