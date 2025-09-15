@@ -14,7 +14,7 @@ notes:
         The preview image of the grid in this post is now interactive (on most browsers). Click around to see the algorithm outlined below in action.
 ---
 
-I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's what it looks like.
+I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's what it looks like and how it's made.
 
 <script>
 	sketch3d.load(class extends sketch3d.webglSketch {
@@ -267,8 +267,6 @@ I've been working on a little VR project for a while, and one of the first thing
 		}
 	});
 </script>
-
-Read on to find out _exactly_ how it's rendered.
 
 # Implementation
 
