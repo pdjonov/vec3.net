@@ -14,7 +14,7 @@ notes:
         The preview image of the grid in this post is now interactive (on most browsers). Click around to see the algorithm outlined below in action.
 ---
 
-I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's how it works.
+I've been working on a little VR project for a while, and one of the first things I needed at the start was something to _stand_ on. So I made an infinite grid to be my floor. Here's what it looks like.
 
 <script>
 	sketch3d.load(class extends sketch3d.webglSketch {
@@ -268,13 +268,13 @@ I've been working on a little VR project for a while, and one of the first thing
 	});
 </script>
 
-Read on to find out _exactly_ how that image is rendered.
+Read on to find out _exactly_ how it's rendered.
 
 # Implementation
 
-This discussion will be using some Vulkan terminology, and the shader code is in [Slang](https://shader-slang.org/), but it should all be trivial to translate to other languages and APIs. For instance, the image above is powered by a WebGL implementation, which you can find right in this page's source.
+This post will be using some Vulkan terminology, and the shader code is in [Slang](https://shader-slang.org/), but it should all be trivial to translate to other languages and APIs. For instance, the image above on this very page is powered by a WebGL implementation (which you can find in the page source).
 
-First of all, it's an infinite plane. It doesn't have any real geometric structure, so it doesn't need vertex buffers and so on. To kick this off, I just bind the pipeline and kick off a `vkCmdDraw` for 4 vertices (since what I want is logically a _quad_). The pipeline uses a triangle _fan_ topology, but this could just as well have been a triangle strip (with appropriate adjustments in the vertex shader).
+To start, I'm rendering an infinite plane. It doesn't have any real geometric structure, so it doesn't need vertex buffers and so on. I just bind the correct pipeline and kick off a `vkCmdDraw` for 4 vertices (since what I want is logically a _quad_). The pipeline uses a triangle _fan_ topology, but this could just as well have been a triangle strip (with appropriate adjustments in the vertex shader).
 
 ## The vertex shader
 
@@ -323,7 +323,7 @@ Alright, what's going on here?
 
 ### Finding the quad's corners
 
-First, I need to compute the coordinates of the corners of my quad. I begin by turning our vertex ID into a coordinate on a 1x1 unit square extending from $(0, 0)$ to $(1, 1)$.
+First, I need to compute the coordinates of the corners of my quad. I begin by turning the vertex ID (which ranges from 0 to 3) into a coordinate on a 1x1 unit square extending from $(0, 0)$ to $(1, 1)$.
 
 ```slang
 var bit0 = vertexId & 0x1;
@@ -609,9 +609,9 @@ First, there's `lineDist`, which is the distance(ish) from the center of the nea
 
 How does this work? Well, let's consider the _y_-axis. Pixels belonging to it will be some _small_ distance _in x_ away from $0.5$. (Why $0.5$? This is that offset from the vertex shader helping out again.)
 
-The first thing that happens is the shader computes the _fractional_ part of that coordinate. That is, it takes just the decimals. Mathematically, this looks like subtracting the _floor_ of the value from the value. Then that's subtracted from $0.5$ (again, that's our coordinate shift in action), producing a signed distance which is converted into a regular distance by taking the absolute value.
+The first thing that happens is the shader computes the _fractional_ part of that coordinate. That is, it takes just the decimals. Mathematically, this looks like subtracting the _floor_ of the value from the value. Then that's subtracted from $0.5$ (again, that's the coordinate shift in action), producing a signed distance which is converted into a regular distance by taking the absolute value.
 
-Let's see what that looks like near the _y_-axis (defined by looking at _x_-coords):
+Let's see what that looks like near the _y_-axis (defined by looking at _x_-coords near $0$, and taking into account the shift by $0.5$):
 
 $$
 \begin{split}
