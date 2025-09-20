@@ -25,7 +25,9 @@ I've been working on a little VR project for a while, and one of the first thing
 			super(canvas);
 
 			this._clearColor = [0, 0, 0, 0];
+		}
 
+		_createResources(gl) {
 			this.#prog = this.compileProgram(
 				//vertex shader
 				`#version 300 es

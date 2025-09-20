@@ -163,6 +163,24 @@
 				throw e;
 			}
 		}
+
+		//called at startup and after a lost context is restored
+		_createResources(gl) {
+		}
+
+		_contextRestored() {
+			const gl = this.context;
+			this._createResources(gl);
+			this._draw(gl);
+		}
+
+		//called when the context is lost
+		_dropResources() {
+		}
+
+		_contextLost() {
+			this._dropResources();
+		}
 	}
 
 	//#region math
@@ -701,6 +719,19 @@
 				return;
 			}
 
+			if (sketch.prototype instanceof webglSketch) {
+				this.sketch._createResources(this.ctx);
+
+				const webglSketch = this.sketch;
+				canvasElement.addEventListener("webglcontextlost", function (e) {
+					webglSketch._contextLost();
+					e.preventDefault();
+				}, false);
+				canvasElement.addEventListener("webglcontextrestored", function (e) {
+					webglSketch._contextRestored();
+				}, false);
+			}
+
 			//wire it up
 
 			sketchElement.appendChild(canvasElement);
@@ -897,6 +928,11 @@
 
 		#invalidate() { this.#draw(); } // :(
 		#draw() {
+			if (this.sketch.prototype instanceof webglSketch) {
+				if (this.ctx.isContextLost())
+					return;
+			}
+
 			this.sketch._draw(this.ctx);
 		}
 
