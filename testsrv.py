@@ -13,5 +13,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 		super().__init__(*args, directory=srvdir, **kwargs)
 
+print('Server up on http://localhost:5080')
 with TCPServer(('', 5080), Handler) as httpd:
-	httpd.serve_forever()
+	try:
+		httpd.serve_forever()
+	except KeyboardInterrupt:
+		print('Server down.')
