@@ -4,7 +4,7 @@ tags:
   - graphics
   - code
   - shaders
-  - slang
+  - Slang
   - Vulkan
   - WebGL
 notes:
