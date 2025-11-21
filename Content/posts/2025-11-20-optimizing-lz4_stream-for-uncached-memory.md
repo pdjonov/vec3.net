@@ -36,16 +36,16 @@ The first iteration of this was very straightforward. It was _much_ faster in un
 
 ## Copying literals
 
-This is the easiest of the two main loops in the algorithm since `memcpy` can do all the hard work for us.
+This is the easiest of the two main loops in the algorithm since `memcpy` can do all the hard work.
 
 1. Clamp the (remaining) literal length to the size of the input and output buffers.
 2. If the clamped length is greater than 64K:
    1. Copy all but the last 64K directly to the output buffer.
    2. Copy the rest to the internal buffer.
    3. Copy from the internal buffer to the output stream.
-   4. Reset the internal buffer's current position. (It's a circular buffer, and we just rewrote the whole thing so, wherever it was before, it now starts at _zero_.)
+   4. Reset the internal buffer's current position. (It's a circular buffer, and the whole thing was just overwritten with new content so, wherever it was at before, it now restarts at _zero_.)
 3. Otherwise:
-   1. Copy to the internal buffer, perhaps splitting the copy into two parts if we have to go around the end of the buffer. (Again, circular buffer.)
+   1. Copy to the internal buffer, perhaps splitting the copy into two parts if it has to go around the end of the buffer. (Again, circular buffer.)
    2. Copy that from the internal buffer to the output.
 
 Since `memcpy` is already perfectly suitable for writing to uncached memory, there's really nothing further to be done here.
@@ -54,12 +54,12 @@ Since `memcpy` is already perfectly suitable for writing to uncached memory, the
 
 This is where things get tricky. There are two main cases to consider:
 
-1. The _match-length_ is less than (or equal to) the _match-distance_. In this case there's no overlap between what we're copying _from_ and where we're copying _to_.
-2. The _match-length_ is greater than the _match-distance_. Here we have an overlap which has to be respected (this is the RLE case).
+1. The _match-length_ is less than (or equal to) the _match-distance_. In this case there's no overlap between what's being copied and where it's being copied _to_.
+2. The _match-length_ is greater than the _match-distance_. Here there's an overlap which has to be respected (this is the RLE case).
 
 ### No overlap
 
-In the first case, there's no RLE stuff going on, the source and destination regions do not overlap, and we can just `memcpy` (taking care to not go past the end of the internal decode buffer).
+In the first case, there's no RLE stuff going on, the source and destination regions do not overlap, and I just `memcpy` (taking care to not go past the end of the internal decode buffer).
 
 ```c
 static unsigned int lz4_dec_cpy_mat_no_overlap(
@@ -100,7 +100,7 @@ This loop will usually complete in just one iteration. However, if either the so
 
 ### RLE
 
-It's the second case where things get interesting. Becasue the source and destination regions overlap, we can't use `memcpy`. And `memmove` also wasn't designed for RLE shenanigans, so it's also out of the picture. (I think my original implementation got this wrong, but it just so happened to work on the standard libraries I run with - I'll fix this eventually.)
+It's the second case where things get interesting. Becasue the source and destination regions overlap, I can't use `memcpy`. And `memmove` also wasn't designed for RLE shenanigans, so it's also out of the picture. (I think my original implementation got this wrong, but it just so happened to work on the standard libraries I run with - I'll fix this eventually.)
 
 The simplest way to write this is just copying one byte at a time:
 
@@ -131,7 +131,7 @@ A much faster approach is one that copies entire machine words at a time.
 
 #### Unaligned reads and writes near the 64K buffer's edges
 
-First, let's deal with a small complication. Reading and writing near the edges of the 64K buffer is annoying since we have to go byte-by-byte. Better if we could just do a pair of unaligned read-word instructions than a whole loop of read-byte. To allow this, we'll put some padding around the internal buffer, which lets us read and write a little past its end on either side without crashing or corrupting anything:
+First, let's deal with a small complication. Reading and writing near the edges of the 64K buffer is annoying since I'd have to go byte-by-byte. Better if I could just do a pair of unaligned read-word instructions than a whole loop of read-byte. To allow this, I've added some padding around the internal buffer, which lets me read and write a little past its end on either side without crashing or corrupting anything:
 
 ```c
 // old
@@ -146,7 +146,7 @@ Why 32 bytes and not just `sizeof(uintptr_t)`? Well, I might eventually use SIMD
 
 #### Bit-twiddling hacks
 
-When working with machine words, we also need to keep in mind that the logic for assembling bytes into words is different on different processors. Fortunately, the only thing that changes when switching the byte order is the direction of the shifts, and we can capture this with a few simple macros:
+When working with machine words, it's also important to remember that the logic for assembling bytes into words is different on different processors. Fortunately, in this case, the only thing that changes when switching the byte order is the direction of the shifts, and I capture this with a few simple macros:
 
 ```c
 #if LZ4_BYTE_ORDER == LITTLE_ENDIAN
@@ -233,9 +233,9 @@ Note that `lz4_dec_cpy_mat_rle_long_dst` might return an `n_copied` which is _le
 
 #### The hard case
 
-We can always start by just loading _match-distance_ bytes into a register, (represented here by the `uintptr_t` variable `c`), in exactly the same way `lz4_dec_cpy_mat_rle_long_dst` loads a word.
+I start by just loading _match-distance_ bytes into a register, (represented here by the `uintptr_t` variable `c`), in exactly the same way `lz4_dec_cpy_mat_rle_long_dst` loads a word.
 
-Next, we deal with the fact that only the first _match-distance_ bytes are valid by copying them again and again until all of the register's bytes contain nothing else:
+Next, I deal with the fact that only the first _match-distance_ bytes are valid by copying just those bytes again and again until they've overwritten everything else which was in the register:
 
 ```c
 c &= MASK_N(uintptr_t, mat_dst);
@@ -243,28 +243,28 @@ for (unsigned int n = mat_dst; n < sizeof(uintptr_t); n *= 2)
 	c |= c LBOS n * 8;
 ```
 
-If _match-distance_ is a factor of `sizeof(uintptr_t)`, then this is all that's needed. But there's no guarantee that it will be, and so we have to deal with that. Let's consider a simple example.
+If _match-distance_ is a factor of `sizeof(uintptr_t)`, then this is all that's needed. But there's no guarantee that it will be, so I have to deal with that. This is a bit tricky.
 
 For illustration, I'll represent bytes as single letters and machine words as containing 8 bytes. Imagine that _match-distance_ is _3_. After filling the register, it will look something like this:
 ```
 ABCABCAB
 ```
 
-But if we copied that end to end a few times, we'd get the wrong pattern of bytes:
+But if I copied that end to end a few times, I'd get the wrong pattern of bytes (which I've placed side below with the correct pattern):
 ```
 bad:  ABCABCABABCABCABABCABCAB
 good: ABCABCABCABCABCABCABCABC
 ```
 
-To fix this, every time we write the contents of `c`, we'll need to shuffle its bytes around to make sure the _next_ write starts on the correct byte. So after writing an `ABCABCAB`, the _next_ write needs to start not on an `A` but rather a `C`. That means the register needs to be shifted by two bytes to get the incorrect leading `AB` out of the way:
+To fix this, every time I write the contents of `c`, I'll shuffle its bytes around to make sure the _next_ write starts on the correct byte. So after writing an `ABCABCAB`, the _next_ write needs to start not on an `A` but rather a `C`. That means the register needs to be shifted by two bytes to get the incorrect leading `AB` out of the way:
 
 ```
 CABCAB00
 ```
 
-Then the two zero bytes that we just shifted in need to be filled with real data. Extending the pattern, those bytes should be another `CA`. And, what a coincidence, that happens to be the first two bytes of the just-shifted register!
+Then the two zero bytes that I just shifted in need to be filled with real data. Extending the pattern, those bytes should be another `CA`. And, what a coincidence, that happens to be the first two bytes of the just-shifted register!
 
-Okay, that's actually not a coincidence at all. The two bytes we just shifted out of the way were the left over _remainder_ of the fact that the word size isn't a multiple of _match-distance_. After they're out of the way, the lenfth of what's left (up to the zeroes we just shifted in) _is_ a multiple of _match-distance_, and so the correct place to start repeating is at the beginning of the adjusted register. So those last two zero bytes should be filled in with the _first_ two bytes.
+Okay, that's actually not a coincidence at all. The two bytes I just shifted out of the way were the left over _remainder_ of the fact that the word size isn't a multiple of _match-distance_. After they're out of the way, the length of what's left (up to the zeroes I just shifted in) _is_ a multiple of _match-distance_, and so the correct place to start repeating is at the beginning of the adjusted register. So those last two zero bytes should be filled in with the _first_ two bytes.
 
 Putting that all together in code makes a function that's a bit like this:
 ```c
