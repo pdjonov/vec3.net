@@ -1,5 +1,5 @@
 ---
-title: "Adjusting Shader Assembly With Regex"
+title: "Fixing SPIR-V Assembly With Regex"
 series: content-builder
 tags:
   - bugs
@@ -12,7 +12,7 @@ tags:
   - programming
 ---
 
-Yesterday I worked around a Vulkan driver bug on my Quest 3 by writing code that throws regular expressions at SPIR-V assembly until it's in the right form to make the driver happy. Some of you probably wish you hadn't just read that sentence, because it's full of tech jargon which you aren't familiar with, and that might have bored or annoyed you. You are the lucky ones. The rest of my readers have already felt my pain, and the first paragraph isn't even done yet. It's (horror) story time - and you might learn a little about SPIR-V along the way if you stick around. I sure did.
+Yesterday I worked around a Vulkan driver bug on my Quest 3 by writing code that throws regular expressions at SPIR-V assembly until it's in the right form to make the driver happy. Some of you might not have enjoyed reading that sentence. Those who just dislike the unfamiliar tech jargon are the lucky ones. The rest are already feeling my pain, and the first paragraph isn't even over yet. It's (horror) story time - but you might learn a little about SPIR-V along the way if you stick around. I sure did.
 
 This post isn't about building content _generally_, but it is about a problem which I ultimately fixed (well, _worked around_) with code inside the build pipeline. Things like this do tend to accumulate in and around asset compilers, so my deep dive into this one is included in the series on building content.
 
@@ -22,25 +22,27 @@ This started off pretty simple. After getting a (very) basic Android build set u
 
 # The investigation
 
-The crash turned out to be caused by a failure in [`vkCreateGraphicsPipelines`](https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateGraphicsPipelines.html). The result code was less than helpful: `VK_ERROR_UNKNOWN`. I had one additional hint - right before returning `ERROR_UNKNOWN`, the driver printed a warning to the Android log: "Failed to link shaders." With nothing else to go on, I started deleting bits of the shaders, focusing my efforts on their interfaces, until I narrowed down the culprit:
+The crash turned out to be caused by a failure in [`vkCreateGraphicsPipelines`](https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateGraphicsPipelines.html). The result code was less than helpful: `VK_ERROR_UNKNOWN`. I had one additional hint - right before returning `ERROR_UNKNOWN`, the driver printed a warning to the Android log: "Failed to link shaders." And, of course, _my_ logs showed me _which_ pipeline was failing to compile. With that to go on, I opened the offending shaders and started changing/deleting bits to see if I could narrow down _what_ triggered the fault. Focusing my efforts on the shaders' interfaces (because that's what a _link_ error suggests), I quickly tracked down the culprit:
 
 ```slang
 out float[1] ClipDistance : SV_ClipDistance;
 ```
 
-It didn't matter what I wrote to that output or where and how I declared it, any use of `SV_ClipDistance` and the pipeline wouldn't link on my VR set. Now,  the Quest 3 _does_ [support](https://vulkan.gpuinfo.org/displayreport.php?id=33588#features) the `shaderClipDistance` feature, and my one clip plane is well within its `maxClipDistances` value of 8. So what could be the problem?
+It didn't matter what I wrote to that output or where and how I declared it, any use of `SV_ClipDistance` and the pipeline wouldn't link on my HMD. Now, the Quest 3 _does_ [support](https://vulkan.gpuinfo.org/displayreport.php?id=33588#features) the `shaderClipDistance` feature, and my one clip plane's request for _one_ clip plane is well within the bounds of the GPU's `maxClipDistances` [limit](https://vulkan.gpuinfo.org/displayreport.php?id=33588#properties) (which is 8). So why doesn't its pipeline compiler like `SV_ClipDistance`?
 
-A quick aside: this sort of "just try things to get clues about the issue" approach is just something that we have to fall back on at times. There isn't _always_ a nice tool that can just hand you the answer to an obscure problem. (No, not even LLMs can do that until after they've indexed somebody else's solution to that same problem.) This _will_ happen to any engineer who's working on a sufficiently complex project at some point, and it's one of the reasons why it _always_ pays off to invest early on (and on an ongoing basis) in fast builds and deploys.
+A quick aside: this sort of "just try things to get clues about the issue" approach to troubleshooting is, often enough, all one has to fall back on - particularly when interfacing with closed systems. And this approach can even turn into a frustrating hunt for _specific_ needles in a (sometimes moving) haystack. Understanding what you're up against helps _immesurably_. In this case, having a general idea of what _must_ be going on in the driver told me immediately which end of the haystack to begin on. In others, it's allowed me to binary-search my haystack - and $O(\log{_2}{(haystack)})$ is _waaaay_ faster than plain old $O(haystack)$.
 
 ## Checking my API usage
 
-As it turned out, I had checked but forgotten to _enable_ the `shaderClipDistance` feature. No other driver that I test on had complained, but maybe this one was just being strict? So I fixed that, and it did not fix the issue.
+As it turned out, I had a bug in my application code outside the shader. Specifically, a review of all things `ClipDistance` in the Vulkan documentation showed that I had checked for _but forgotten to enable_ the `shaderClipDistance` device feature. No other driver that I test on had complained about this, but maybe this one was just more strict? Well, it turned out that no, this wasn't what the driver was upset about.
 
-Looking at the Vulkan spec, I couldn't find anything else I might have done wrong, so I went back to poking at the shader.
+With a careful review of the C++ code complete, I had to go back to the shader and pick at it _a lot_ more thoroughly.
 
 ## Looking at the SPIR-V
 
-At some point, I started examining the SPIR-V, which I grabbed easily enough from a [RenderDoc](https://renderdoc.org/) capture on PC. I'm using [Slang](https://shader-slang.org/), and I thought that maybe I'd hit a subtle compiler bug. Trimming away everything except the references to `ClipDistance` (and the things that those references refer to) left me with this:
+The Slang source was fine, and even _very_ trivial substitute shaders failed to work, so I started examining the actual SPIR-V shader bytecode. It's easy enough to look at shader disassembly in [RenderDoc](https://renderdoc.org/) on PC, and my PC build runs exactly the same shader code, that's where I went next. I am using [Slang](https://shader-slang.org/), which is a newer shading language, and I thought that maybe I'd hit a subtle bug in its compiler.
+
+Trimming away everything except the references to `ClipDistance` (and the things that those references refer to), this is what Slang emits for a `SV_ClipDistance` binding:
 
 ```spvasm
 ; SPIR-V
@@ -104,9 +106,9 @@ That is an instruction to the driver to link the `%gl_ClipDistance` symbol to wh
                OpStore %gl_ClipDistance %851
 ```
 
-Okay, it's just some arbitrary variable, as far as SPV's concerned. Probably the only reason it renders as `%gl_ClipDistance` is that the disassembler saw the `OpDecorate` on it and chose a friendlier name than, say `%851`.
+Okay, as far as SPIR-V is concerned, it's just some variable. Probably the only reason it renders as `%gl_ClipDistance` is that the disassembler saw the `OpDecorate` on it and chose a friendlier name than, say `%851`.
 
-And finally, there were no traces of `%gl_ClipDistance` anywhere in the fragment shader at all.
+And finally, there were no traces of `%gl_ClipDistance` anywhere in the fragment shader at all, which is what I expected.
 
 ### Examining `%gl_ClipDistance`'s type
 
@@ -127,21 +129,21 @@ Reading that, you can see that:
 * `%int` is a 32-bit _signed_ (that's what the 1 at the end of the `OpTypeInt` means) integer.
 * `%float` is a 32-bit `float`.
 
-It's kind of interesting how SPIR-V builds up even very primitive types like `int32` as a series of declarations rather than having them built in. I suppose this is to leave room to expose lower-precision types on GPUs that support them without having to pile on lots and lots of extensions.
+It's kind of interesting how SPIR-V builds up even very primitive types like `int32` as a series of declarations rather than having them built in. I suppose this is to leave room to expose non-standard-precision types on GPUs that support them without having to pile on lots and lots of extensions.
 
-It's also interesting to note that array types do _not_ automatically "decay" to pointers as they do in C and C++. When SPIR-V says something is an array of `N` values, that means there's actually `N` (probably: terms and conditions may apply when it comes to builtins) contiguous values.
+It's also interesting to note that array types do _not_ automatically "decay" to pointers as they do in C and C++. When SPIR-V says something is an array of `N` values, that refers to the N values, not the starting address of some contiguous range in memory.
 
 ## So, what's the problem?
 
 Well, looking up `BuiltIn ClipDistance` I see mention of a `ClipDistance` _capability_, and I don't see an `OpCapability` for that. None of my other devices care that the compiler missed it (just like they didn't care that I'd forgotten to enable `shaderClipDistance`), but maybe that's the issue.
 
-Otherwise, everything seems fine to me.
+I hoped so, because everything else seemed pretty reasonable. I'm _not_ saying it's _correct_, becuase I haven't spent enough time with the spec to really _know_ what is and isn't legal for a `BuiltIn ClipDistance` binding. But the code didn't look _wrong_ to me, either.
 
 ## Surely, working around this little problem will be easy...
 
 Now, the question is _how_ to work around this issue. I _don't_ want to commit the time necessary to forking the Slang compiler and making and maintaining my own patches. That would be _excessive_ unless I'm absolutely _forced_ into doing so.
 
-Fortunately, the same SPIR-V disassembler that RenderDoc is using is available as a library. And I already have it available in my tools pipeline as a leftover from earlier experimentation and debugging. So it should be a simple matter of taking Slang's output, disassembling it, editing the text, and then reassembling the resulting shader module. A little annoying, but easy enough to do, and something I could plug into the build system so it just runs automatically.
+Fortunately, the same SPIR-V disassembler that RenderDoc is using is available as a library. And I already had it wrapped and available as a nice utility API in my tools pipeline (a leftover from earlier experimentation and debugging). So it should be a simple matter of taking Slang's output, disassembling it, editing the text, and then reassembling the resulting shader module. A little annoying, but easy enough to do, and something I could plug into the build system so it just runs automatically.
 
 To get there, I wrote two regular expressions. One to find `OpDecorate ... BuiltIn ...` instructions and another to find `OpCapability`.
 
@@ -159,15 +161,15 @@ But it didn't help. The missing `OpCapability ClipDistance` was _not_, in fact, 
 
 ## Trying different things
 
-The first thing to do at this point was confirm that `ClipDistance` actually _works_ on the Quest 3. It's such a basic feature and important for some very powerful _and common_ rendering techniques, so I couldn't imagine _that_ being broken, but I had to check regardless. To do that, I dusted off my old GLSL-based pre-Slang graphics pipeline compilation model.
+The first thing to do at this point was confirm that `ClipDistance` actually _works_ on the Quest 3. It's such a basic feature and important for some very powerful _and common_ rendering techniques, so I couldn't imagine _that_ being broken, but I had to check regardless. To do that, I dusted off my old GLSL-based pre-Slang graphics pipeline compilation code.
 
 Step one: Go back to my RenderDoc capture and ask it to _decompile_ my shader module into (very ugly) GLSL.
 
 Step two: Paste that into a file and put it in my build in place of (well, next to) the Slang source. Point the pipeline definition at the GLSL source.
 
-Step three: Fix the bitrot in the GLSL-based content builder. The main problem here was that Slang supports user-defined attributes in its source, its reflection API makes them visible to users of the Slang libraries, and I had built my material-pipelinine binding logic on top of these attributes. GLSL and [SPIRV-Reflect](https://github.com/KhronosGroup/SPIRV-Reflect), obviously, have no analog. The short version is I patched up the GLSL reflection code to synthesize the information the new Slang reflection code produces directly, mostly based on some silly ad-hoc naming conventions.
+Step three: Fix the bitrot in the GLSL-based content builder. The main problem here was that Slang supports user-defined attributes in its source, its reflection API makes them visible to users of the Slang libraries, and I had built my material-pipelinine binding logic on top of these attributes. GLSL and [SPIRV-Reflect](https://github.com/KhronosGroup/SPIRV-Reflect), obviously, have no equivalent feature. The short version here is that I patched up the GLSL reflection code to synthesize the information the new Slang reflection code produces directly, mostly based on some silly ad-hoc naming conventions.
 
-And with that out of the way, I compiled a set of GLSL shaders equivalent to the Slang ones, and they worked.
+And with that out of the way and my material compilers happy, I compiled the GLSL source I'd copied out of RenderDoc's decompiler, and it worked.
 
 At this point I entertained a few options:
 * Switch this one material over to GLSL.
@@ -178,7 +180,7 @@ I didn't like any of these options, so I decided to dig a bit deeper. But it was
 
 ## Figuring out what was wrong
 
-So now that I know that `ClipDistance` _does_ work on the device and that the problem is with the Slang version of the shaders, I had to work out _exactly_ what the relevant difference is between the two compiler outputs. I've already gone over Slang's output, so now it was time to do the same with `glslang`'s:
+So now that I know that `ClipDistance` _does_ work on the device and that the problem is with the specifically _Slang_ version of the bytecode, I had to work out _exactly_ what the relevant difference is between the two compilers' output. I've already gone over Slang's output, so now it was time to do the same with `glslang`'s:
 
 ```spvasm
                OpCapability Shader
@@ -187,12 +189,6 @@ So now that I know that `ClipDistance` _does_ work on the device and that the pr
 ; snip
                OpEntryPoint Vertex %2 "vert" %3 %4 %5 %6 %7 %8
 ; snip
-               OpDecorate %_arr_v4float_uint_3 ArrayStride 16
-               OpMemberDecorate %_struct_12 0 Offset 0
-               OpMemberDecorate %_struct_13 0 Offset 0
-               OpDecorate %_struct_14 Block
-               OpMemberDecorate %_struct_14 0 Offset 0
-;snip
                OpDecorate %_struct_15 Block
                OpMemberDecorate %_struct_15 0 BuiltIn Position
                OpMemberDecorate %_struct_15 1 BuiltIn PointSize
@@ -218,14 +214,14 @@ So now that I know that `ClipDistance` _does_ work on the device and that the pr
 Well _this_ is interesting.
 
 A few things jumped out at me immediately as I scanned the assembly:
-* The compiler put in an `OpCapability ClipDistance`.
+* The compiler did include an `OpCapability ClipDistance`.
 * The compiler put in an _unused_ reference to `BuiltIn CullDistance`, but no `OpCapability CullDistance`.
 * The `BuiltIn ClipDistance` appears in an `OpMemberDecorate`, _not_ an `OpDecorate`...
 * ... because the ClipDistance isn't in a plain variable, it's in a _struct_, `%_struct_15`.
 * `%_struct_15` contains some other stuff as well, like the output vertex position and another unused field for `BuiltIn PointSize`.
 * The final `CullDistance` value is _still_ written through an `OpStore` which writes the value through a pointer in the same way Slang's code does, but that pointer is just formed a little differently.
 
-For those who don't follow where I got all that from, here's how `OpTypeStruct` works:
+Briefly, for those who don't follow where I got all that from, here's how `OpTypeStruct` works:
 ```spvasm
  %_struct_15 = OpTypeStruct %v4float %float %_arr_float_uint_1 %_arr_float_uint_1
           %5 = OpVariable %_ptr_Output__struct_15 Output
@@ -257,7 +253,7 @@ So that's quite the list of differences. It'd be good if I could find which ones
 * I was already set up to assemble SPIR-V from text as part of my quick hack to patch in the `OpCapability ClipDistance`.
 * I had just fixed the reflection logic for GLSL shaders. And since that runs off of the GLSL compiler's SPIR-V output rather than the GLSL source, it could just as easily accept SPIR-V from other sources.
 
-So I added _another_ shader format to the build tool's pipeline compiler:
+Putting those together, I added _another_ shader format to the build tool's pipeline compiler:
 
 ```csharp
 ShaderModuleSpirvBytecode BuildSpirvAsmModule()
@@ -319,9 +315,9 @@ And, finally, I threw in an `OpCapability ClipDistance`, just to keep things tid
 
 # Automating the solution
 
-So, that's nice. I can disassembly Slang's output and patch it by hand and... yeah there's no way I'm making that my workflow. Absolutely not. _Ephatically: **Hell no.**_
+So, that's nice. I can disassembly Slang's output and patch it by hand and... yeah there's no way I'm making that my workflow. Absolutely not. _Ephatically: **hell no.**_
 
-The actual list of patches that the shader required is pretty short, so I decided to see how far I could push my regex-based approach from the earlier `OpCapability` experiment. But I'd need more regexes for this:
+The actual list of patches that the shader required is pretty short, so I decided to see how far I could push the simple regex-based approach from the earlier `OpCapability` experiment. But I'd need more regexes for this:
 
 ```csharp
 [GeneratedRegex(@"^\s*OpCapability\s+(?<name>\w+)\s*$", RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
@@ -401,6 +397,6 @@ Is it _horrifying?_ Yes.
 
 But does it work? _Yes._
 
-It's integrated into my regular content builds, and a warning prints every time the code triggers. So I don't have to fall back to writing some subset of my shaders in GLSL or (ugh) raw SPIR-V assembly. The problem-matching criteria in my code _should_ be tight enough to prevent it messing up as the Slang compiler evolves, but if something breaks it's usually pretty clear/easy to catch (at least at the scale of a one man hobby project). It's not _great_, but it's _good enough_. (And it's not even the worst hack I've had to make to deal with GPU drivers being GPU drivers.)
+It's integrated into my regular content builds, and a warning prints every time the code triggers. So I don't have to fall back to writing some subset of my shaders in GLSL or (ugh) raw SPIR-V assembly. The problem-matching criteria in my code _should_ be tight enough to prevent it messing up as the Slang compiler evolves, but if something breaks it's usually pretty clear/easy to catch (at least at the scale of a one man hobby project). It's not _great_, but it's _good enough_. (This isn't even the worst hack I've ever had to make to deal with GPU drivers being GPU drivers.)
 
 If I'm lucky, someone will do something about my bug report before I ever have to touch this code again, and it can one day simply be deleted. For now, do I have other things I'd rather work on _before_ I make this any prettier/more robust than it has to be? Yes. Otherwise, if the need arises for even more of these patches, I may have to learn to properly parse SPIR-V without first disassembling it to human-readable text and start manipulating it in that way. (May that day never come. Or, at least not for _this_ reason.)
