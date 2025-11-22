@@ -141,7 +141,7 @@ Otherwise, everything seems fine to me.
 
 Now, the question is _how_ to work around this issue. I _don't_ want to commit the time necessary to forking the Slang compiler and making and maintaining my own patches. That would be _excessive_ unless I'm absolutely _forced_ into doing so.
 
-Fortunately, the same SPIR-V disassembler that RenderDoc is using is available as a library. And I already have it available in my tools pipeline as a leftover from earlier experimentation and debugging. So it should be a simple matter of taking Slang's output, disassembling it, editing the text, and then reassembling the resulting shader module. A little annoying, but easy enough to do.
+Fortunately, the same SPIR-V disassembler that RenderDoc is using is available as a library. And I already have it available in my tools pipeline as a leftover from earlier experimentation and debugging. So it should be a simple matter of taking Slang's output, disassembling it, editing the text, and then reassembling the resulting shader module. A little annoying, but easy enough to do, and something I could plug into the build system so it just runs automatically.
 
 To get there, I wrote two regular expressions. One to find `OpDecorate ... BuiltIn ...` instructions and another to find `OpCapability`.
 
@@ -155,13 +155,13 @@ private static partial Regex OpDecorateBuiltInMatcher();
 
 The logic was simple. If `OpDecorateBuiltInMatcher` found a hit for `ClipDistance` but `OpCapabilityMatcher` didn't, then inject an `OpCapability ClipDistance` into the text and reassemble the shader. Took almost no time to code it up...
 
-As it turned out, the missing `OpCapability ClipDistance` was _not_, in fact, the problem. The Quest 3's driver happily ignores its absence just like every other driver seems to. There is _something else_ that it objects to.
+But it didn't help. The missing `OpCapability ClipDistance` was _not_, in fact, the problem. The Quest 3's driver happily ignores its absence just like every other driver seems to. There is _something else_ that it objects to, so the search went on.
 
 ## Trying different things
 
-The first thing to do at this point is confirm that `ClipDistance` actually _works_ on the Quest 3. It's such a basic feature and so important for _a lot_ of rendering techniques that I couldn't imagine _that_ being broken, but I had to check regardless. To do that, I dusted off my old GLSL-based pre-Slang graphics pipeline compilation model.
+The first thing to do at this point was confirm that `ClipDistance` actually _works_ on the Quest 3. It's such a basic feature and important for some very powerful _and common_ rendering techniques, so I couldn't imagine _that_ being broken, but I had to check regardless. To do that, I dusted off my old GLSL-based pre-Slang graphics pipeline compilation model.
 
-Step one: Go back to my RenderDoc capture and ask it to _decompile_ my shader module into GLSL.
+Step one: Go back to my RenderDoc capture and ask it to _decompile_ my shader module into (very ugly) GLSL.
 
 Step two: Paste that into a file and put it in my build in place of (well, next to) the Slang source. Point the pipeline definition at the GLSL source.
 
@@ -262,7 +262,7 @@ So I added _another_ shader format to the build tool's pipeline compiler:
 ```csharp
 ShaderModuleSpirvBytecode BuildSpirvAsmModule()
 {
-	// some code snipped/inlined for expository purposes
+	// pseudo(ish)code
 
 	// use the assembler routine from earlier
 	var bytecode = Assemble(spirvAsmSource);
@@ -285,7 +285,7 @@ var module = Args.InputFile.Extension switch
 };
 ```
 
-With that in place, I took the disassembly from the broken Slang shaders, pasted it into a `.spvasm` file (as before, next to the Slang source), and pointed the pipeline definition at it. I then started making little changes to it by hand, moving it in the direction of the GLSL compiler's output, until I found what works.
+With that in place, I took the disassembly from the broken Slang shaders, pasted it into a `.spvasm` file (as before, next to the Slang source), and pointed the pipeline definition at it. I then started making little changes to it by hand, moving it in the direction of the GLSL compiler's output, until I got something that works.
 
 ## What worked
 
