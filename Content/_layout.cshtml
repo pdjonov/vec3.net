@@ -98,6 +98,10 @@
 		{
 			<script src="/assets/hljs/slang.js"></script>
 		}
+		if (features.Contains("language-spvasm"))
+		{
+			<script src="/assets/hljs/spvasm.js"></script>
+		}
 	}
 
 	@* canvas *@
@@ -172,6 +176,10 @@
 			@if (features.Contains("language-slang"))
 			{
 				<text>hljs.registerLanguage('slang', hljsDefineSlang);</text>
+			}
+			@if (features.Contains("language-spvasm"))
+			{
+				<text>hljs.registerLanguage('spvasm', hljsDefineSPVASM);</text>
 			}
 			hljs.initHighlightingOnLoad();
 		</script>
