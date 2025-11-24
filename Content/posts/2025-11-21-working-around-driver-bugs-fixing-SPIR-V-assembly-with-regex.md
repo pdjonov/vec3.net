@@ -1,5 +1,5 @@
 ---
-title: "Fixing SPIR-V Assembly With Regex"
+title: "Working Around Driver Bugs: Fixing SPIR-V Assembly With Regex"
 series: content-builder
 tags:
   - bugs
@@ -12,7 +12,7 @@ tags:
   - programming
 ---
 
-Yesterday I worked around a Vulkan driver bug on my Quest 3 by writing code that throws regular expressions at SPIR-V assembly until it's in the right form to make the driver happy. Some of you might not have enjoyed reading that sentence. Those who just dislike the unfamiliar tech jargon are the lucky ones. The rest are already feeling my pain, and the first paragraph isn't even over yet. It's (horror) story time - but you might learn a little about SPIR-V along the way if you stick around. I sure did.
+Recently, I worked around a Vulkan driver bug on my Quest 3 by writing code that throws regular expressions at SPIR-V assembly until it's in the right form to make the driver happy. Some of you might not have enjoyed reading that sentence. Those who just dislike the unfamiliar tech jargon are the lucky ones. The rest are already feeling my pain, and this first paragraph isn't even over yet. It's (horror) story time - but you might learn a little about SPIR-V along the way if you stick around. I sure did.
 
 This post isn't about building content _generally_, but it is about a problem which I ultimately fixed (well, _worked around_) with code inside the build pipeline. Things like this do tend to accumulate in and around asset compilers, so my deep dive into this one is included in the series on building content.
 
